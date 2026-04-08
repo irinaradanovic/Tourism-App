@@ -12,7 +12,7 @@ type BlogHandler struct {
 	service *service.BlogService
 }
 
-func NewBlogGandler(service *service.BlogService) *BlogHandler {
+func NewBlogHandler(service *service.BlogService) *BlogHandler {
 	return &BlogHandler{
 		service: service,
 	}
