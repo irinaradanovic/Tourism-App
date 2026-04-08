@@ -18,6 +18,7 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/blogs", hand.CreateBlog).Methods("POST")
+	r.HandleFunc("/blogs", hand.GetAll).Methods("GET")
 	r.HandleFunc("/blogs/{id}", hand.GetOne).Methods("GET")
 
 	log.Println("Server pokrenut na portu 8081...")

@@ -52,3 +52,16 @@ func (h *BlogHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(b)
 }
+
+func (h *BlogHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	blogs, err := h.service.GetAllBlogs(ctx)
+	if err != nil {
+		http.Error(w, "Error while getting blogs", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(blogs)
+}
