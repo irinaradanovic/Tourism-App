@@ -7,6 +7,7 @@ import (
 	"blog/service"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 	"gorm.io/driver/postgres"
@@ -14,7 +15,9 @@ import (
 )
 
 func main() {
-	dsn := "host=localhost user=postgres password=postgres dbname=blog port=5432 sslmode=disable"
+	dsn := os.Getenv("DB_URL") // cita iz docker-compose
+
+	log.Println("Connecting with DSN:", dsn)
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 	if err != nil {
