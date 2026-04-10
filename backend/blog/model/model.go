@@ -13,7 +13,11 @@ type Blog struct {
 	Description string         `json:"description"`
 	Images      pq.StringArray `gorm:"type:text[]" json:"images,omitempty"`
 	CreatedAt   time.Time      `json:"created_at"`
-	Likes       int            `json:"likes,omitempty"`
+	Likes       int64          `gorm:"-" json:"likes"`
+}
 
-	//dodati posle komentare
+type Like struct {
+	ID     uint   `gorm:"primaryKey"` // ovaj broj ce se samostalno inkrementirati
+	UserId string `gorm:"index:idx_user_blog,unique"`
+	BlogId string `gorm:"index:idx_user_blog,unique"`
 }

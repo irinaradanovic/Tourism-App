@@ -34,7 +34,7 @@ func (s *BlogService) GetBlogById(ctx context.Context, id string) (model.Blog, e
 	return s.repo.GetByID(ctx, id)
 }
 
-// 6. Blog creation
+// 6.
 func (s *BlogService) CreateBlog(ctx context.Context, dto CreateBlogDTO) (model.Blog, error) { // posle dodati da se blog povezuje sa korisnikom koji ga je kreirao
 	if dto.Title == "" || dto.Description == "" {
 		return model.Blog{}, errors.New("title and description are required")
@@ -58,4 +58,20 @@ func (s *BlogService) CreateBlog(ctx context.Context, dto CreateBlogDTO) (model.
 	}
 
 	return blog, nil
+}
+
+// 8.
+func (s *BlogService) ToggleLike(ctx context.Context, blogId string, userId string) error {
+	errLike := s.repo.IsLiked(ctx, blogId, userId)
+
+	if errLike == nil { // vec je lajkovano, obrisi
+		return s.repo.RemoveLike(ctx, blogId, userId)
+	}
+
+	newLike := model.Like{
+		BlogId: blogId,
+		UserId: userId,
+	}
+	return s.repo.AddLike(ctx, newLike)
+
 }

@@ -21,6 +21,8 @@ services:
       - db_blog
     environment:
       DB_URL: "host=db_blog user=postgres password=turizamSifra dbname=blog_db port=5432 sslmode=disable"
+    volumes:
+      - ./uploads:/root/uploads
     
 volumes:
   postgres_data:
