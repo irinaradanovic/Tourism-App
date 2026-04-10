@@ -24,7 +24,7 @@ func main() {
 		log.Fatal("Error while connecting to database:", err)
 	}
 
-	db.AutoMigrate(&model.Blog{}) //automatsko kreiranje tabele
+	db.AutoMigrate(&model.Blog{}, &model.Like{}) //automatsko kreiranje tabele
 
 	repo := repository.NewBlogRepository(db)
 	serv := service.NewBlogService(repo)
@@ -35,6 +35,10 @@ func main() {
 	r.HandleFunc("/blogs", hand.CreateBlog).Methods("POST")
 	r.HandleFunc("/blogs", hand.GetAll).Methods("GET")
 	r.HandleFunc("/blogs/{id}", hand.GetOne).Methods("GET")
+	r.HandleFunc("/blogs/{id}/like", hand.LikeBlog).Methods("POST")
+
+	// sve sto se nalazi u folderu /uploads bice dostupno na ruti /uploads/ime_slike.jpg
+	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 
 	log.Println("Running on port 8081...")
 	log.Fatal(http.ListenAndServe(":8081", r))
