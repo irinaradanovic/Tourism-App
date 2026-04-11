@@ -25,6 +25,8 @@ func main() {
 	}
 
 	db.AutoMigrate(&model.Blog{}, &model.Like{}) //automatsko kreiranje tabele
+	db.AutoMigrate(&model.Blog{}) //automatsko kreiranje tabele
+	db.AutoMigrate(&model.Comment{})
 
 	repo := repository.NewBlogRepository(db)
 	serv := service.NewBlogService(repo)
@@ -39,6 +41,9 @@ func main() {
 
 	// sve sto se nalazi u folderu /uploads bice dostupno na ruti /uploads/ime_slike.jpg
 	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
+	r.HandleFunc("/blogs/{id}/comments", hand.AddComment).Methods("POST")
+	r.HandleFunc("/blogs/{id}/comments", hand.GetComments).Methods("GET")
+	r.HandleFunc("/blogs/{blogId}/comments/{commentId}", hand.EditComment).Methods("PATCH")
 
 	log.Println("Running on port 8081...")
 	log.Fatal(http.ListenAndServe(":8081", r))

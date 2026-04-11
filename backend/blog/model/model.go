@@ -21,3 +21,11 @@ type Like struct {
 	UserId string `gorm:"index:idx_user_blog,unique"`
 	BlogId string `gorm:"index:idx_user_blog,unique"`
 }
+type Comment struct {
+	ID        string    `gorm:"primaryKey" json:"id"`
+	BlogID    string    `json:"blog_id"`
+	AuthorID  string    `json:"author_id"`
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"created_at"`
+	EditedAt  time.Time `json:"edited_at,omitempty"`
+}

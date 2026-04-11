@@ -61,32 +61,17 @@ func (h *BlogHandler) CreateBlog(w http.ResponseWriter, r *http.Request) {
 		// kreiraj jedinstveno ime fajla
 		fileName := uuid.NewString() + ext
 
-		// putanja koju pisemo u bazu i koristimo za cuvanje
-		filePath := filepath.Join(uploadDir, fileName)
-
-		// sacuvaj na disk
-		dst, _ := os.Create(filePath)
-		if err != nil {
-			http.Error(w, "Error while saving file to server", http.StatusInternalServerError)
-			return
-		}
-		defer dst.Close()
-		io.Copy(dst, file)
-
-		imagePaths = append(imagePaths, filePath)
-	}
-
-	dto := service.CreateBlogDTO{
-		Title:       title,
-		Description: description,
-		Images:      imagePaths,
-	}
-
-	created, err := h.service.CreateBlog(r.Context(), dto)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
+		http.Error(w, "Wrong request", http.StatusBadRequest)
 		return
 	}
+
+	created, err := h.service.CreateBlog(ctx, dto)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(created)
@@ -140,4 +125,60 @@ func (h *BlogHandler) LikeBlog(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 
+}
+
+func (h *BlogHandler) AddComment(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	blogID := vars["id"]
+	var dto service.CreateCommentDTO
+
+	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
+		http.Error(w, "Wrong request", http.StatusBadRequest)
+		return
+	}
+	dto.BlogID = blogID
+	comment, err := h.service.CreateComment(ctx, dto)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(comment)
+}
+
+func (h *BlogHandler) GetComments(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	blogID := vars["id"]
+	comments, err := h.service.GetCommentsByBlogID(ctx, blogID)
+	if err != nil {
+		http.Error(w, "Error while getting comments", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(comments)
+}
+
+func (h *BlogHandler) EditComment(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	blogID := vars["blogId"]
+	commentID := vars["commentId"]
+	var dto service.EditCommentDTO
+
+	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
+		http.Error(w, "Wrong request", http.StatusBadRequest)
+		return
+	}
+	dto.ID = commentID
+	dto.BlogID = blogID
+	updatedComment, err := h.service.EditComment(ctx, dto)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updatedComment)
 }
