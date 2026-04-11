@@ -14,6 +14,10 @@ type IBlogRepository interface {
 	AddLike(ctx context.Context, newLike model.Like) error
 	IsLiked(ctx context.Context, blogId string, userId string) error
 	RemoveLike(ctx context.Context, blogId string, userId string) error
+	SaveComment(ctx context.Context, comment model.Comment) error
+	GetCommentsByBlogID(ctx context.Context, blogID string) ([]model.Comment, error)
+	UpdateComment(ctx context.Context, comment model.Comment) error
+	GetCommentByID(ctx context.Context, id string) (model.Comment, error)
 }
 
 type BlogRepository struct {

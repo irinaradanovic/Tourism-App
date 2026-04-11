@@ -61,17 +61,32 @@ func (h *BlogHandler) CreateBlog(w http.ResponseWriter, r *http.Request) {
 		// kreiraj jedinstveno ime fajla
 		fileName := uuid.NewString() + ext
 
-	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
-		http.Error(w, "Wrong request", http.StatusBadRequest)
-		return
+		// putanja koju pisemo u bazu i koristimo za cuvanje
+		filePath := filepath.Join(uploadDir, fileName)
+
+		// sacuvaj na disk
+		dst, _ := os.Create(filePath)
+		if err != nil {
+			http.Error(w, "Error while saving file to server", http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+		io.Copy(dst, file)
+
+		imagePaths = append(imagePaths, filePath)
 	}
 
-	created, err := h.service.CreateBlog(ctx, dto)
+	dto := service.CreateBlogDTO{
+		Title:       title,
+		Description: description,
+		Images:      imagePaths,
+	}
+
+	created, err := h.service.CreateBlog(r.Context(), dto)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(created)
