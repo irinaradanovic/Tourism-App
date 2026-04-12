@@ -22,9 +22,9 @@ type CreateBlogDTO struct {
 }
 
 type CreateCommentDTO struct {
-	BlogID  string `json:"blog_id"`
+	BlogID   string `json:"blog_id"`
 	AuthorID string `json:"author_id"`
-	Content string `json:"content"`
+	Content  string `json:"content"`
 }
 
 type EditCommentDTO struct {
@@ -50,7 +50,7 @@ func (s *BlogService) GetCommentsByBlogID(ctx context.Context, blogID string) ([
 }
 
 // 6. Blog creation
-func (s *BlogService) CreateBlog(ctx context.Context, dto CreateBlogDTO) (model.Blog, error) { // posle dodati da se blog povezuje sa korisnikom koji ga je kreirao
+func (s *BlogService) CreateBlog(ctx context.Context, dto CreateBlogDTO, authorId string) (model.Blog, error) { // posle dodati da se blog povezuje sa korisnikom koji ga je kreirao
 	if dto.Title == "" || dto.Description == "" {
 		return model.Blog{}, errors.New("title and description are required")
 	}
@@ -58,7 +58,7 @@ func (s *BlogService) CreateBlog(ctx context.Context, dto CreateBlogDTO) (model.
 	// mapiranje dto
 	blog := model.Blog{
 		ID:          uuid.NewString(), // generisemo novi string
-		AuthorId:    "100",            // MOCKUJEMO KORISNIKA DOK SE NE URADI LOG IN
+		AuthorId:    authorId,
 		Title:       dto.Title,
 		Description: dto.Description,
 		Images:      dto.Images,
@@ -95,19 +95,19 @@ func (s *BlogService) CreateComment(ctx context.Context, dto CreateCommentDTO) (
 	if dto.BlogID == "" || dto.AuthorID == "" || dto.Content == "" {
 		return model.Comment{}, errors.New("blog_id, author_id and content are required")
 	}
-	    if _, err := s.repo.GetByID(ctx, dto.BlogID); err != nil {
-        return model.Comment{}, errors.New("blog not found")
-    }
+	if _, err := s.repo.GetByID(ctx, dto.BlogID); err != nil {
+		return model.Comment{}, errors.New("blog not found")
+	}
 
-    now := time.Now().UTC()
-    comment := model.Comment{
-        ID:        uuid.NewString(),
-        BlogID:    dto.BlogID,
-        AuthorID:  "100", // Mockovanje korisnika
-        Content:   dto.Content,
-        CreatedAt: now,
-        EditedAt:  now,
-    }
+	now := time.Now().UTC()
+	comment := model.Comment{
+		ID:        uuid.NewString(),
+		BlogID:    dto.BlogID,
+		AuthorID:  "100", // Mockovanje korisnika
+		Content:   dto.Content,
+		CreatedAt: now,
+		EditedAt:  now,
+	}
 	err := s.repo.SaveComment(ctx, comment)
 	if err != nil {
 		return model.Comment{}, err
@@ -123,7 +123,7 @@ func (s *BlogService) EditComment(ctx context.Context, dto EditCommentDTO) (mode
 		return model.Comment{}, errors.New("comment not found")
 	}
 	if _, err := s.repo.GetByID(ctx, dto.BlogID); err != nil {
-	return model.Comment{}, errors.New("associated blog not found")
+		return model.Comment{}, errors.New("associated blog not found")
 	}
 	comment.Content = dto.Content
 	comment.EditedAt = time.Now().UTC()
