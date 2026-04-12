@@ -23,21 +23,19 @@ export default {
   },
   methods: {
     async handleLogin() {
-      try {
+    try {
         const response = await login(this.form)
-        localStorage.setItem('user', JSON.stringify({
-          ...response.data,
-          password: this.form.password
-        }))
-        if (response.data.role === 'ADMIN') {
-          this.$router.push('/admin/users')
+        localStorage.setItem('token', response.data.token)
+        localStorage.setItem('user', JSON.stringify(response.data.user))
+        if (response.data.user.role === 'ADMIN') {
+            this.$router.push('/admin/users')
         } else {
-          this.$router.push('/')
+            this.$router.push('/')
         }
-      } catch (e) {
+    } catch (e) {
         this.message = 'Pogrešno korisničko ime ili lozinka!'
-      }
     }
+}
   }
 }
 </script>
