@@ -10,8 +10,11 @@ export const login = (credentials) => {
     return axios.post(`${API_URL}/auth/login`, credentials)
 }
 
-export const getAllUsers = (username, password) => {
+export const getAllUsers = () => {
+    const token = localStorage.getItem('token')
     return axios.get(`${API_URL}/users`, {
-        auth: { username, password }
+        headers: {
+            Authorization: `Bearer ${token}`
+        }
     })
 }

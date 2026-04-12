@@ -39,15 +39,15 @@ export default {
   },
   async mounted() {
     try {
-      const user = JSON.parse(localStorage.getItem('user'))
-      if (!user || user.role !== 'ADMIN') {
-        this.$router.push('/login')
-        return
-      }
-      const response = await getAllUsers(user.username, user.password)
-      this.users = response.data
+        const user = JSON.parse(localStorage.getItem('user'))
+        if (!user || user.role !== 'ADMIN') {
+            this.$router.push('/login')
+            return
+        }
+        const response = await getAllUsers()
+        this.users = response.data
     } catch (e) {
-      this.message = 'Greška pri učitavanju korisnika!'
+        this.message = 'Greška pri učitavanju korisnika!'
     }
   },
   methods: {
