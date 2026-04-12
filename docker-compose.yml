@@ -9,11 +9,12 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - blog_postgres_data:/var/lib/postgresql
 
   blog:
     build:
       context: ./backend/blog
+    restart: always 
     container_name: blog-service
     ports:
       - 8081:8081
@@ -21,6 +22,7 @@ services:
       - db_blog
     environment:
       DB_URL: "host=db_blog user=postgres password=turizamSifra dbname=blog_db port=5432 sslmode=disable"
+      JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
     volumes:
       - ./uploads:/root/uploads
 
@@ -34,7 +36,7 @@ services:
     ports:
       - 5433:5432
     volumes:
-      - stakeholders_postgres_data:/var/lib/postgresql/data
+      - stakeholders_postgres_data:/var/lib/postgresql
 
   stakeholders:
     build:
@@ -48,7 +50,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db_stakeholders:5432/stakeholders_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: turizamSifra
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
 
 volumes:
-  postgres_data:
+  blog_postgres_data:
   stakeholders_postgres_data:

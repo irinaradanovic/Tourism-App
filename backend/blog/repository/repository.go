@@ -34,7 +34,13 @@ func (r *BlogRepository) Save(ctx context.Context, blog model.Blog) error {
 
 func (r *BlogRepository) GetAll(ctx context.Context) ([]model.Blog, error) {
 	var blogs []model.Blog
-	err := r.db.WithContext(ctx).Find(&blogs).Error
+	err := r.db.WithContext(ctx).Order("created_at DESC").Find(&blogs).Error
+
+	// dva korisnika mogu lajkovati neki blog u istoj sekundi
+	// i moze se desiti greska da se broj lajkova ne doda dobro, pa racunamo svaki put broj lajkova na osnovu tabele Like
+	for i := range blogs {
+		r.db.Model(&model.Like{}).Where("blog_id = ?", blogs[i].ID).Count(&blogs[i].Likes)
+	}
 	return blogs, err
 }
 
@@ -67,7 +73,6 @@ func (r *BlogRepository) GetCommentByID(ctx context.Context, id string) (model.C
 	err := r.db.WithContext(ctx).First(&comment, "id = ?", id).Error
 	return comment, err
 }
-
 
 func (r *BlogRepository) IsLiked(ctx context.Context, blogId string, userId string) error {
 	var existingLike model.Like

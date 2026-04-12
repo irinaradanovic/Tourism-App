@@ -24,13 +24,16 @@ func main() {
 		log.Fatal("Error while connecting to database:", err)
 	}
 
-	db.AutoMigrate(&model.Blog{}, &model.Like{}) //automatsko kreiranje tabele
-	db.AutoMigrate(&model.Blog{}) //automatsko kreiranje tabele
-	db.AutoMigrate(&model.Comment{})
+	db.AutoMigrate(&model.Blog{}, &model.Like{}, &model.Comment{}) //automatsko kreiranje tabele
+
+	jwtSecret := os.Getenv("JWT_SECRET") // cita iz docker-compose
+	if jwtSecret == "" {
+		jwtSecret = "z2S4p9X8v6w3y1z5A7b9C0d2E4f6G8h0" // default
+	}
 
 	repo := repository.NewBlogRepository(db)
 	serv := service.NewBlogService(repo)
-	hand := handler.NewBlogHandler(serv)
+	hand := handler.NewBlogHandler(serv, jwtSecret)
 
 	r := mux.NewRouter()
 
