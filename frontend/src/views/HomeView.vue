@@ -23,6 +23,8 @@
 </template>
 
 <script>
+import { logout } from '../services/authService'
+
 export default {
   data() {
     return {
@@ -36,11 +38,19 @@ export default {
     }
   },
   methods: {
-    logout() {
-      localStorage.removeItem('user')
-      this.user = null
-      this.$router.push('/')
+    async logout() {
+    console.log('Przed logout - token:', localStorage.getItem('token'))
+    localStorage.removeItem('user')
+    localStorage.removeItem('token')
+    console.log('Nakon logout - token:', localStorage.getItem('token'))
+    this.user = null
+    try {
+        await logout()
+    } catch (e) {
+        console.log('Greška:', e)
     }
+    this.$router.push('/login')
+  }
   }
 }
 </script>

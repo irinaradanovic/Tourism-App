@@ -29,21 +29,6 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    public User login(String username, String password) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found!"));
-
-        if (user.isBlocked()) {
-            throw new RuntimeException("User is blocked!");
-        }
-
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new RuntimeException("Wrong password!");
-        }
-
-        return user;
-    }
-
     public User findByUsername(String username) {
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found!"));

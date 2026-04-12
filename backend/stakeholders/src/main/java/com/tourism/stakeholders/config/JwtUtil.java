@@ -22,7 +22,7 @@ public class JwtUtil {
     private Key key;  
 
     //private final Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
-    private final long EXPIRATION = 1000 * 60 * 60 * 24; // 24 sata
+    private final long EXPIRATION = 1000 * 60 * 60 * 24; // 24h
 
     @PostConstruct
     public void init() {

@@ -1,7 +1,7 @@
 <template>
   <div class="container">
     <h2>Svi korisnici</h2>
-    <button @click="logout">Odjavi se</button>
+    <button @click="handleLogout">Odjavi se</button>
     <table v-if="users.length > 0">
       <thead>
         <tr>
@@ -28,7 +28,7 @@
 </template>
 
 <script>
-import { getAllUsers } from '../services/authService'
+import { getAllUsers, logout } from '../services/authService'
 
 export default {
   data() {
@@ -39,20 +39,26 @@ export default {
   },
   async mounted() {
     try {
-        const user = JSON.parse(localStorage.getItem('user'))
-        if (!user || user.role !== 'ADMIN') {
-            this.$router.push('/login')
-            return
-        }
-        const response = await getAllUsers()
-        this.users = response.data
+      const user = JSON.parse(localStorage.getItem('user'))
+      if (!user || user.role !== 'ADMIN') {
+        this.$router.push('/login')
+        return
+      }
+      const response = await getAllUsers()
+      this.users = response.data
     } catch (e) {
-        this.message = 'Greška pri učitavanju korisnika!'
+      this.message = 'Greška pri učitavanju korisnika!'
     }
   },
   methods: {
-    logout() {
+    async handleLogout() {
       localStorage.removeItem('user')
+      localStorage.removeItem('token')
+      try {
+        await logout()
+      } catch (e) {
+        console.log('Greška:', e)
+      }
       this.$router.push('/login')
     }
   }
