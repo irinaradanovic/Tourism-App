@@ -1,6 +1,7 @@
 package com.tourism.stakeholders.controller;
 
 import com.tourism.stakeholders.config.JwtUtil;
+import com.tourism.stakeholders.config.TokenBlacklist;
 import com.tourism.stakeholders.dto.LoginRequestDTO;
 import com.tourism.stakeholders.dto.UserResponseDTO;
 import com.tourism.stakeholders.model.User;
@@ -23,6 +24,7 @@ public class AuthController {
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
+    private final TokenBlacklist tokenBlacklist;
 
     @PostMapping("/register")
     public ResponseEntity<UserResponseDTO> register(@RequestBody User user) {
@@ -47,7 +49,11 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<String> logout() {
+    public ResponseEntity<String> logout(@RequestHeader("Authorization") String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            tokenBlacklist.blacklist(token);
+        }
         return ResponseEntity.ok("Logged out successfully");
     }
 }
