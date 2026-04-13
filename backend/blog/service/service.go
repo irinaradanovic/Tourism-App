@@ -28,9 +28,10 @@ type CreateCommentDTO struct {
 }
 
 type EditCommentDTO struct {
-	ID      string `json:"id"`
-	BlogID  string `json:"blog_id"`
-	Content string `json:"content"`
+	ID       string `json:"id"`
+	BlogID   string `json:"blog_id"`
+	Content  string `json:"content"`
+	AuthorID string `json:"author_id"`
 }
 
 func NewBlogService(repo repository.IBlogRepository) *BlogService {
@@ -103,7 +104,7 @@ func (s *BlogService) CreateComment(ctx context.Context, dto CreateCommentDTO) (
 	comment := model.Comment{
 		ID:        uuid.NewString(),
 		BlogID:    dto.BlogID,
-		AuthorID:  "100", // Mockovanje korisnika
+		AuthorID:  dto.AuthorID,
 		Content:   dto.Content,
 		CreatedAt: now,
 		EditedAt:  now,
@@ -118,12 +119,18 @@ func (s *BlogService) EditComment(ctx context.Context, dto EditCommentDTO) (mode
 	if dto.Content == "" {
 		return model.Comment{}, errors.New("content is required")
 	}
+	if dto.AuthorID == "" {
+		return model.Comment{}, errors.New("User has to be authenticated to edit comment")
+	}
 	comment, err := s.repo.GetCommentByID(ctx, dto.ID)
 	if err != nil {
 		return model.Comment{}, errors.New("comment not found")
 	}
 	if _, err := s.repo.GetByID(ctx, dto.BlogID); err != nil {
 		return model.Comment{}, errors.New("associated blog not found")
+	}
+	if comment.AuthorID != dto.AuthorID {
+		return model.Comment{}, errors.New("user can only edit their own comments")
 	}
 	comment.Content = dto.Content
 	comment.EditedAt = time.Now().UTC()
