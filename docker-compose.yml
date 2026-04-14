@@ -1,0 +1,58 @@
+services:
+  db_blog:
+    image: postgres:latest
+    container_name: blog-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: turizamSifra
+      POSTGRES_DB: blog_db
+    ports:
+      - 5432:5432
+    volumes:
+      - blog_postgres_data:/var/lib/postgresql
+
+  blog:
+    build:
+      context: ./backend/blog
+    restart: always 
+    container_name: blog-service
+    ports:
+      - 8081:8081
+    depends_on:
+      - db_blog
+    environment:
+      DB_URL: "host=db_blog user=postgres password=turizamSifra dbname=blog_db port=5432 sslmode=disable"
+      JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
+    volumes:
+      - ./uploads:/root/uploads
+
+  db_stakeholders:
+    image: postgres:latest
+    container_name: stakeholders-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: turizamSifra
+      POSTGRES_DB: stakeholders_db
+    ports:
+      - 5433:5432
+    volumes:
+      - stakeholders_postgres_data:/var/lib/postgresql
+
+  stakeholders:
+    build:
+      context: ./backend/stakeholders
+    container_name: stakeholders-service
+    ports:
+      - 8082:8082
+    depends_on:
+      - db_stakeholders
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db_stakeholders:5432/stakeholders_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: turizamSifra
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
+
+volumes:
+  blog_postgres_data:
+  stakeholders_postgres_data:
