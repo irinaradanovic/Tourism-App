@@ -208,11 +208,24 @@ func (h *BlogHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 	blogID := vars["id"]
 	var dto service.CreateCommentDTO
 
+	userID, userRole, errUser := h.GetUserIdFromToken(w, r)
+	if errUser != nil {
+		http.Error(w, "Unauthorized: "+errUser.Error(), http.StatusUnauthorized)
+		return
+	}
+	if userRole != "GUIDE" && userRole != "TOURIST" {
+		http.Error(w, "Forbidden: Only guides and tourists can comment", http.StatusForbidden)
+		return
+	}
+
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		http.Error(w, "Wrong request", http.StatusBadRequest)
 		return
 	}
+
 	dto.BlogID = blogID
+	dto.AuthorID = userID
+
 	comment, err := h.service.CreateComment(ctx, dto)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -243,12 +256,22 @@ func (h *BlogHandler) EditComment(w http.ResponseWriter, r *http.Request) {
 	commentID := vars["commentId"]
 	var dto service.EditCommentDTO
 
+	userID, userRole, errUser := h.GetUserIdFromToken(w, r)
+	if errUser != nil {
+		http.Error(w, "Unauthorized: "+errUser.Error(), http.StatusUnauthorized)
+		return
+	}
+	if userRole != "GUIDE" && userRole != "TOURIST" {
+		http.Error(w, "Forbidden: Only guides and tourists can edit comments", http.StatusForbidden)
+		return
+	}
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
 		http.Error(w, "Wrong request", http.StatusBadRequest)
 		return
 	}
 	dto.ID = commentID
 	dto.BlogID = blogID
+	dto.AuthorID = userID
 	updatedComment, err := h.service.EditComment(ctx, dto)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
