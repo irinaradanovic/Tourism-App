@@ -1,56 +1,72 @@
 <template>
-  <div class="container">
-    <h1>Tourism App</h1>
-    <p>Dobrodošli u našu turističku aplikaciju!</p>
+  <div class="hero-container">
+    <div class="hero-content">
+      <h1>Welcome to TourismApp</h1>
+      <p>Discover beautiful destinations and share your experiences.</p>
+      
+      <div v-if="!user" class="hero-actions">
+        <router-link to="/register" class="btn-primary">Get Started</router-link>
+        <router-link to="/login" class="btn-secondary">Sign In</router-link>
+      </div>
 
-    <div class="buttons" v-if="!user">
-      <router-link to="/register">
-        <button>Registruj se</button>
-      </router-link>
-      <router-link to="/login">
-        <button>Prijavi se</button>
-      </router-link>
-    </div>
-
-    <div v-if="user">
-      <p>Prijavljeni ste kao: <strong>{{ user.username }}</strong> ({{ user.role }})</p>
-      <router-link to="/admin/users" v-if="user.role === 'ADMIN'">
-        <button>Pregled korisnika</button>
-      </router-link>
-      <button @click="logout">Odjavi se</button>
+      <div v-else class="user-status">
+        <p>Currently active as: <strong>{{ user.username }}</strong></p>
+        <router-link to="/blogs" class="btn-primary">Explore Blogs</router-link>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { logout } from '../services/authService'
-
 export default {
   data() {
-    return {
-      user: null
-    }
-  },
-  mounted() {
-    const stored = localStorage.getItem('user')
-    if (stored) {
-      this.user = JSON.parse(stored)
-    }
-  },
-  methods: {
-    async logout() {
-    console.log('Przed logout - token:', localStorage.getItem('token'))
-    localStorage.removeItem('user')
-    localStorage.removeItem('token')
-    console.log('Nakon logout - token:', localStorage.getItem('token'))
-    this.user = null
-    try {
-        await logout()
-    } catch (e) {
-        console.log('Greška:', e)
-    }
-    this.$router.push('/login')
-  }
+    return { user: JSON.parse(localStorage.getItem('user')) }
   }
 }
 </script>
+
+<style scoped>
+.hero-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 60vh;
+  text-align: center;
+}
+
+.hero-content h1 {
+  font-size: 3.5rem;
+  color: #2c3e50;
+  margin-bottom: 20px;
+}
+
+.hero-content p {
+  font-size: 1.2rem;
+  color: #7f8c8d;
+  margin-bottom: 40px;
+}
+
+.hero-actions, .user-status {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.btn-primary {
+  background: #28a745;
+  color: white;
+  padding: 12px 30px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.btn-secondary {
+  border: 2px solid #28a745;
+  color: #28a745;
+  padding: 10px 30px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+}
+</style>

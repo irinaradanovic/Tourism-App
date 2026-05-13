@@ -52,7 +52,15 @@ services:
       SPRING_DATASOURCE_PASSWORD: turizamSifra
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
-
+  frontend:
+    build:
+      context: ./frontend 
+      dockerfile: Dockerfile
+    container_name: vue_frontend
+    ports:
+      - "5173:80" 
+    restart: always
+    
 volumes:
   blog_postgres_data:
   stakeholders_postgres_data:
