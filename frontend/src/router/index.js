@@ -3,6 +3,10 @@ import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
+import BlogListView from '../views/BlogListView.vue'
+import CreateBlogView from '../views/CreateBlogView.vue'
+import BlogDetailsView from '../views/BlogDetailsView.vue'
+
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -26,7 +30,22 @@ const router = createRouter({
       path: '/admin/users',
       name: 'adminUsers',
       component: AdminUsersView
-    }
+    },
+    {
+      path: '/blogs',
+      name: 'blogs',
+      component: BlogListView
+    },
+    {
+      path: '/create-blog',
+      name: 'createBlog',
+      component: CreateBlogView
+    },
+    {
+      path: '/blogs/:id',
+      name: 'blogDetails',
+      component: BlogDetailsView
+    },
   ]
 })
 
