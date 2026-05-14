@@ -6,6 +6,7 @@ import AdminUsersView from '../views/AdminUsersView.vue'
 import BlogListView from '../views/BlogListView.vue'
 import CreateBlogView from '../views/CreateBlogView.vue'
 import BlogDetailsView from '../views/BlogDetailsView.vue'
+import ProfileView from '../views/ProfileView.vue'
 
 
 const router = createRouter({
@@ -45,6 +46,11 @@ const router = createRouter({
       path: '/blogs/:id',
       name: 'blogDetails',
       component: BlogDetailsView
+    },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: ProfileView
     },
   ]
 })

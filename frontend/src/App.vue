@@ -7,9 +7,13 @@
       <div class="nav-links">
         <!-- Always visible -->
         <router-link to="/blogs" v-if="user">Blogs</router-link>
+
+
         
         <!-- Only if logged in -->
         <template v-if="user">
+          <router-link to="/profile">My Profile</router-link>
+
           <router-link to="/admin/users" v-if="user.role === 'ADMIN'">Admin Panel</router-link>
           <span class="user-greeting">Hi, {{ user.username }}</span>
           <button @click="handleLogout" class="btn-logout">Logout</button>

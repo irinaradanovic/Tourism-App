@@ -32,4 +32,15 @@ public class User {
     @Column(nullable = false)
     private boolean blocked = false;
 
+    private String firstName;
+
+    private String lastName;
+
+    @Column(length = 2000)
+    private String biography;
+
+    private String motto;
+
+    private String profileImage;
+
 }

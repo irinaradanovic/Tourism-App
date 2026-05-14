@@ -68,4 +68,15 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    public User getById(Long id) {
+
+        return userRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "User not found!"
+                        )
+                );
+    }
+
 }

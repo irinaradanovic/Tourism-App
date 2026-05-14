@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import com.tourism.stakeholders.dto.UserResponseDTO;
 import org.springframework.web.server.ResponseStatusException;
+import com.tourism.stakeholders.dto.UserProfileDTO;
 
 import java.util.List;
 
@@ -45,4 +46,33 @@ public class UserController {
         User updated = userService.updateProfile(userId, request);
         return ResponseEntity.ok(UserResponseDTO.fromUser(updated));
     }
+
+    @GetMapping("/profile")
+    public ResponseEntity<UserProfileDTO> getMyProfile(Authentication authentication) {
+
+        if (authentication == null || authentication.getName() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Unauthorized"
+            );
+        }
+
+        Long userId;
+
+        try {
+            userId = Long.parseLong(authentication.getName());
+        } catch (NumberFormatException ex) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Invalid token subject"
+            );
+        }
+
+        User user = userService.getById(userId);
+
+        return ResponseEntity.ok(
+                UserProfileDTO.fromUser(user)
+        );
+    }
+
 }
