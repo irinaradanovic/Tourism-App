@@ -79,4 +79,17 @@ public class UserService {
                 );
     }
 
+    public User toggleBlockUser(Long userId) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "User not found!"
+                ));
+
+        user.setBlocked(!user.isBlocked());
+
+        return userRepository.save(user);
+    }
+
 }

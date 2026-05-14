@@ -75,4 +75,12 @@ public class UserController {
         );
     }
 
+    @PutMapping("/{id}/toggle-block")
+    public ResponseEntity<UserResponseDTO> toggleBlock(@PathVariable Long id) {
+
+        User updated = userService.toggleBlockUser(id);
+
+        return ResponseEntity.ok(UserResponseDTO.fromUser(updated));
+    }
+
 }

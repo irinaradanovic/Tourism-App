@@ -14,7 +14,7 @@
         <div class="profile-main-info">
 
           <h1>
-            {{ profile.firstName || 'No first name' }}
+            {{ profile.firstName || 'Name' }}
             {{ profile.lastName || '' }}
           </h1>
 
@@ -26,15 +26,21 @@
             {{ profile.role }}
           </p>
 
-          <p class="motto" v-if="profile.motto">
-            "{{ profile.motto }}"
-          </p>
-
         </div>
 
       </div>
 
       <div class="profile-section">
+
+        <h2>Motto</h2>
+
+        <p class="motto" v-if="profile.motto">
+          "{{ profile.motto }}"
+        </p>
+
+        <p v-else class="empty-text">
+          No motto added yet.
+        </p>
 
         <h2>Biography</h2>
 

@@ -13,5 +13,15 @@ export const userService = {
                 Authorization: `Bearer ${token}`
             }
         })
+    },
+    toggleBlockUser(userId) {
+        const token = localStorage.getItem('token')
+
+        return axios.put(`${API_URL}/${userId}/toggle-block`, {}, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        })
     }
+
 }
