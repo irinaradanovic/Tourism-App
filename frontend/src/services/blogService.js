@@ -6,11 +6,17 @@ const API_URL = 'http://localhost:8081';
 export const blogService = {
 
   getAllBlogs() {
-    return axios.get(`${API_URL}/blogs`);
+    const token = localStorage.getItem('token');
+    return axios.get(`${API_URL}/blogs`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
   },
 
   getBlogById(id) {
-    return axios.get(`${API_URL}/blogs/${id}`);
+    const token = localStorage.getItem('token');
+    return axios.get(`${API_URL}/blogs/${id}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
   },
 
   async createBlog(formData) {

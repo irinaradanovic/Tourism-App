@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"blog/model"
 	"blog/service"
 	"encoding/json"
 	"errors"
@@ -146,9 +147,23 @@ func (h *BlogHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	userId, _, errUser := h.GetUserIdFromToken(w, r)
+	if errUser != nil {
+		http.Error(w, "Unauthorized: "+errUser.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+
 	b, err := h.service.GetBlogById(ctx, id)
 	if err != nil {
 		http.Error(w, "Blog not found", http.StatusNotFound)
+		return
+	}
+
+	// proveri da li korisnik prati autora (ili je sam autor)
+	if !h.service.IsFollowing(ctx, userId, b.AuthorId, token) {
+		http.Error(w, "Forbidden: You can only read blogs of users you follow", http.StatusForbidden)
 		return
 	}
 
@@ -159,14 +174,40 @@ func (h *BlogHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 func (h *BlogHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	userId, _, errUser := h.GetUserIdFromToken(w, r)
+	if errUser != nil {
+		http.Error(w, "Unauthorized: "+errUser.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	followingIds, err := h.service.GetFollowingIds(ctx, userId, token)
+	if err != nil {
+		http.Error(w, "Error fetching following list", http.StatusInternalServerError)
+		return
+	}
+
+	followingSet := make(map[string]bool)
+	for _, id := range followingIds {
+		followingSet[id] = true
+	}
+	followingSet[userId] = true
+
 	blogs, err := h.service.GetAllBlogs(ctx)
 	if err != nil {
 		http.Error(w, "Error while getting blogs", http.StatusInternalServerError)
 		return
 	}
 
+	var filtered []model.Blog
+	for _, blog := range blogs {
+		if followingSet[blog.AuthorId] {
+			filtered = append(filtered, blog)
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(blogs)
+	json.NewEncoder(w).Encode(filtered)
 }
 
 func (h *BlogHandler) LikeBlog(w http.ResponseWriter, r *http.Request) {
