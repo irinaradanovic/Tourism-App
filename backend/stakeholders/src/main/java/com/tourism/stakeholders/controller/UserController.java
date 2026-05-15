@@ -29,6 +29,16 @@ public class UserController {
                 .toList();
         return ResponseEntity.ok(users);
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable Long id) {
+        User user = userService.getUserById(id);
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+        return ResponseEntity.ok(UserResponseDTO.fromUser(user));
+    }
+    
     @PutMapping("/update-profile")
     public ResponseEntity<UserResponseDTO> updateProfile(@RequestBody UpdateProfileDTO request,
                                                          Authentication authentication) {
