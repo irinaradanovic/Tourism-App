@@ -14,6 +14,7 @@
         <template v-if="user">
           <router-link to="/profile">My Profile</router-link>
 
+          <router-link to="/simulator">Simulator</router-link>
           <router-link to="/admin/users" v-if="user.role === 'ADMIN'">Admin Panel</router-link>
           <span class="user-greeting">Hi, {{ user.username }}</span>
           <button @click="handleLogout" class="btn-logout">Logout</button>
