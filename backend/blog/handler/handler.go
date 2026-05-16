@@ -74,19 +74,6 @@ func (h *BlogHandler) CreateBlog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-    // Dohvati blog da bismo znali ko je autor
-    blog, errBlog := h.service.GetBlogById(ctx, blogID)
-    if errBlog != nil {
-        http.Error(w, "Blog not found", http.StatusNotFound)
-        return
-    }
-    // Provjeri da li korisnik prati autora (ili je sam autor)
-    token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-    if !h.service.IsFollowing(ctx, userID, blog.AuthorId, token) {
-        http.Error(w, "Forbidden: You must follow the author to comment", http.StatusForbidden)
-        return
-    }
-
 	err := r.ParseMultipartForm(10 << 20) //max 10mb za sliku
 	if err != nil {
 		http.Error(w, "File is too large", http.StatusBadRequest)
