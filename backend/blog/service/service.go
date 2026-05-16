@@ -219,3 +219,7 @@ func (s *BlogService) EditComment(ctx context.Context, dto EditCommentDTO) (mode
 	return comment, nil
 
 }
+
+func (s *BlogService) GetBlogsByAuthor(ctx context.Context, authorId string) ([]model.Blog, error) {
+	return s.repo.GetByAuthorID(ctx, authorId)
+}

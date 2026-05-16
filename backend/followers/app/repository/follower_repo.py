@@ -29,7 +29,7 @@ class FollowerRepo:
         with self.driver.session() as session:
             query = """
             MATCH (a:User {userId: $uId})-[:FOLLOWS]->(b)
-            RETURN b.userId as id
+            RETURN DISTINCT b.userId as id
             """
             result = session.run(query, uId=int(uId))
             return [record["id"] for record in result]

@@ -45,6 +45,7 @@ func main() {
 
 	r.HandleFunc("/blogs", hand.CreateBlog).Methods("POST")
 	r.HandleFunc("/blogs", hand.GetAll).Methods("GET")
+	r.HandleFunc("/blogs/author/{authorId}", hand.GetBlogsByAuthor).Methods("GET")
 	r.HandleFunc("/blogs/{id}", hand.GetOne).Methods("GET")
 	r.HandleFunc("/blogs/{id}/like", hand.LikeBlog).Methods("POST")
 
@@ -77,14 +78,14 @@ func setupCORS(router *mux.Router) http.Handler {
 func initializeDB(db *gorm.DB, filePath string) error {
 	skripta, err := os.ReadFile(filePath)
 	if err != nil {
-		return fmt.Errorf("ne mogu da pročitam SQL fajl: %w", err)
+		return fmt.Errorf("Cant't read sql file: %w", err)
 	}
 
 	err = db.Exec(string(skripta)).Error
 	if err != nil {
-		return fmt.Errorf("greška pri izvršavanju SQL skripte: %w", err)
+		return fmt.Errorf("Error while creating data: %w", err)
 	}
 
-	fmt.Println("SQL skripta uspešno izvršena kroz Go kod!")
+	fmt.Println("SQL script done")
 	return nil
 }

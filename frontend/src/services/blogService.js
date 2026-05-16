@@ -42,5 +42,12 @@ export const blogService = {
     return axios.post(`${API_URL}/blogs/${blogId}/like`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-  }
+  },
+
+  getBlogsByAuthor(authorId) {
+    const token = localStorage.getItem('token')
+    return axios.get(`http://localhost:8081/blogs/author/${authorId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+}
 };

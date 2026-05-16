@@ -324,3 +324,36 @@ func (h *BlogHandler) EditComment(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updatedComment)
 }
+
+func (h *BlogHandler) GetBlogsByAuthor(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	authorId := vars["authorId"]
+
+	userId, _, errUser := h.GetUserIdFromToken(w, r)
+	if errUser != nil {
+		http.Error(w, "Unauthorized: "+errUser.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+
+	if userId != authorId && !h.service.IsFollowing(ctx, userId, authorId, token) {
+		http.Error(w, "Forbidden: You must follow this user to see their blogs", http.StatusForbidden)
+		return
+	}
+
+	blogs, err := h.service.GetBlogsByAuthor(ctx, authorId)
+	if err != nil {
+		http.Error(w, "Error fetching blogs", http.StatusInternalServerError)
+		return
+	}
+
+	// Dodaj username autora na svaki blog
+	for i := range blogs {
+		blogs[i].AuthorUsername = h.service.GetUsernameById(ctx, blogs[i].AuthorId)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(blogs)
+}

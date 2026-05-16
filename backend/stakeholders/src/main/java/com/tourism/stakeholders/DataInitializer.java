@@ -29,10 +29,18 @@ public class DataInitializer implements CommandLineRunner {
 
             String encodedPassword = passwordEncoder.encode("password");
             
-            String[] firstNames = {"Marko", "Jelena", "Nikola", "Milica", "Stefan", "Ana", "Luka", "Jovana", "Igor", "Sara", "Filip", "Teodora", "Pavle", "Tara", "Nemanja"};
-            String[] lastNames = {"Markovic", "Popovic", "Nikolic", "Petrovic", "Stankovic", "Jovanovic", "Lukic", "Djordjevic", "Ilic", "Kostic", "Mitrovic", "Antic", "Lazarevic", "Tasic", "Ristic"};
+            String[] firstNames = {
+                "Marko", "Jelena", "Nikola", "Milica", "Stefan", "Ana", "Luka", "Jovana", "Igor", "Sara", 
+                "Filip", "Teodora", "Pavle", "Tara", "Nemanja", "Ognjen", "Milena", "Dusan", "Katarina", "Aleksa",
+                "Sofija", "Milos", "Dunja", "Vukašin", "Mina"
+            };
+            String[] lastNames = {
+                "Markovic", "Popovic", "Nikolic", "Petrovic", "Stankovic", "Jovanovic", "Lukic", "Djordjevic", "Ilic", "Kostic", 
+                "Mitrovic", "Antic", "Lazarevic", "Tasic", "Ristic", "Knezevic", "Vukovic", "Petrovic", "Simic", "Savic",
+                "Zivkovic", "Pavlovic", "Boric", "Bogdanovic", "Panic"
+            };
 
-            for (int i = 0; i < 15; i++) {
+            for (int i = 0; i < 25; i++) {
                 User user = new User();
                 String username = firstNames[i].toLowerCase() + (i + 2);
                 
@@ -43,14 +51,14 @@ public class DataInitializer implements CommandLineRunner {
                 user.setLastName(lastNames[i]);
                 user.setRole(i % 2 == 0 ? User.Role.TOURIST : User.Role.GUIDE);
                 user.setBlocked(false);
-                user.setBiography("Ja sam " + firstNames[i]);
-                user.setMotto("Moto " + firstNames[i]);
+                user.setBiography("Ja sam " + firstNames[i] + " i volim putovanja.");
+                user.setMotto("Svet je knjiga, a oni koji ne putuju čitaju samo jednu stranicu. - " + firstNames[i]);
                 user.setProfileImage(null);
 
                 userRepository.save(user);
                 System.out.println(">>> Kreiran korisnik: @" + username + " (Role: " + user.getRole() + ", ID: " + (i + 2) + ")");
             }
-            System.out.println(">>> Uspešno inicijalizovano svih 16 korisnika (1 Admin + 15 Test korisnika)!");
+            System.out.println(">>> Uspešno inicijalizovano svih 26 korisnika (1 Admin + 25 Test korisnika)!");
         }
     }
 }

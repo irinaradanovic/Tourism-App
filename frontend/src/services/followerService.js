@@ -34,5 +34,19 @@ export const followerService = {
         return axios.get(`${API_URL}/${userId}/followings`, {
             headers: { Authorization: `Bearer ${token}` }
         })
+    },
+
+    follow(userId) {
+        const token = localStorage.getItem('token')
+        return axios.post(`${API_URL}/follow?followedId=${userId}`, {}, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+    },
+
+    unfollow(userId) {
+    const token = localStorage.getItem('token')
+    return axios.delete(`${API_URL}/unfollow/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+    })
     }
 }
