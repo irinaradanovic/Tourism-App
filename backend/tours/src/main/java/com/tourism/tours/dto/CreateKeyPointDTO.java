@@ -1,9 +1,9 @@
-package com.tourism.tours.model;
+package com.tourism.tours.dto;
 
 import lombok.Data;
 
 @Data
-public class KeyPoint {
+public class CreateKeyPointDTO {
 
     private String name;
 
@@ -12,6 +12,4 @@ public class KeyPoint {
     private Double latitude;
 
     private Double longitude;
-
-    private String image;
 }

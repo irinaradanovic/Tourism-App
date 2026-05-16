@@ -14,8 +14,17 @@
         <template v-if="user">
           <router-link to="/profile">My Profile</router-link>
 
-          <router-link to="/simulator">Simulator</router-link>
-          <router-link to="/admin/users" v-if="user.role === 'ADMIN'">Admin Panel</router-link>
+          <!-- GUIDE ONLY -->
+          <template v-if="user.role === 'GUIDE'">
+            <router-link to="/create-tour">Create Tour</router-link>
+            <router-link to="/my-tours">My Tours</router-link>
+          </template>
+
+          <!-- ADMIN ONLY -->
+          <router-link v-if="user.role === 'ADMIN'" to="/admin/users">
+            Admin Panel
+          </router-link>
+
           <span class="user-greeting">Hi, {{ user.username }}</span>
           <button @click="handleLogout" class="btn-logout">Logout</button>
         </template>

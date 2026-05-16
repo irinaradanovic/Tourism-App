@@ -1,101 +1,107 @@
 package com.tourism.tours.controller;
 
+import com.tourism.tours.dto.CreateKeyPointDTO;
 import com.tourism.tours.dto.CreateTourDTO;
-import com.tourism.tours.dto.ReviewDTO;
 import com.tourism.tours.model.KeyPoint;
 import com.tourism.tours.model.Tour;
+import com.tourism.tours.security.JwtUtil;
 import com.tourism.tours.service.TourService;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/tours")
+@RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class TourController {
 
     private final TourService tourService;
-
-    public TourController(TourService tourService) {
-        this.tourService = tourService;
-    }
+    private final JwtUtil jwtUtil;
 
     @PostMapping
-    public ResponseEntity<Tour> createTour(@RequestBody CreateTourDTO dto, Authentication auth) {
-        Tour created = tourService.createTour(dto, auth.getName());
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    public ResponseEntity<Tour> createTour(
+            @RequestBody CreateTourDTO dto,
+            @RequestHeader("Authorization") String authHeader
+    ) {
+
+        String token = authHeader.substring(7);
+
+        Long userId = jwtUtil.extractUserId(token);
+
+        Tour created = tourService.createTour(dto, userId);
+
+        return ResponseEntity.ok(created);
     }
 
     @GetMapping("/my")
-    public ResponseEntity<List<Tour>> getMyTours(Authentication auth) {
-        return ResponseEntity.ok(tourService.getMyTours(auth.getName()));
-    }
+    public ResponseEntity<List<Tour>> getMyTours(
+            @RequestHeader("Authorization") String authHeader
+    ) {
 
-    @GetMapping
-    public ResponseEntity<List<Tour>> getPublishedTours() {
-        return ResponseEntity.ok(tourService.getPublishedTours());
+        String token = authHeader.substring(7);
+
+        Long userId = jwtUtil.extractUserId(token);
+
+        return ResponseEntity.ok(
+                tourService.getMyTours(userId)
+        );
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Tour> getById(@PathVariable String id) {
-        return tourService.getById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Tour> getTourById(@PathVariable String id) {
+        return ResponseEntity.ok(tourService.getTourById(id));
     }
 
-    @PostMapping("/{id}/keypoints")
-    public ResponseEntity<?> addKeyPoint(
-            @PathVariable String id,
-            @RequestBody KeyPoint keyPoint,
-            Authentication auth) {
-        try {
-            Tour updated = tourService.addKeyPoint(id, keyPoint, auth.getName());
-            return ResponseEntity.ok(updated);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
-        }
-    }
+    @PostMapping("/{tourId}/key-points")
+    public ResponseEntity<Tour> addKeyPoint(
+            @PathVariable String tourId,
+            @RequestPart("data") CreateKeyPointDTO dto,
+            @RequestPart(value = "image", required = false) MultipartFile image // required = false sprečava pucanje ako nema slike
+    ) throws IOException {
 
-    @PutMapping("/{id}/keypoints/{index}")
-    public ResponseEntity<?> updateKeyPoint(
-            @PathVariable String id,
-            @PathVariable int index,
-            @RequestBody KeyPoint keyPoint,
-            Authentication auth) {
-        try {
-            Tour updated = tourService.updateKeyPoint(id, index, keyPoint, auth.getName());
-            return ResponseEntity.ok(updated);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
-        }
-    }
+        Tour tour = tourService.getTourById(tourId);
 
-    @DeleteMapping("/{id}/keypoints/{index}")
-    public ResponseEntity<?> deleteKeyPoint(
-            @PathVariable String id,
-            @PathVariable int index,
-            Authentication auth) {
-        try {
-            Tour updated = tourService.deleteKeyPoint(id, index, auth.getName());
-            return ResponseEntity.ok(updated);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+        // 1. BEZBEDNOSNA PROVERA: Inicijalizuj listu ako je null da izbegneš NullPointerException
+        if (tour.getKeyPoints() == null) {
+            tour.setKeyPoints(new java.util.ArrayList<>());
         }
-    }
 
-    @PostMapping("/{id}/reviews")
-    public ResponseEntity<?> addReview(
-            @PathVariable String id,
-            @RequestBody ReviewDTO dto,
-            Authentication auth) {
-        try {
-            Tour updated = tourService.addReview(id, dto, auth.getName());
-            return ResponseEntity.ok(updated);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        KeyPoint keyPoint = new KeyPoint();
+        keyPoint.setName(dto.getName());
+        keyPoint.setDescription(dto.getDescription());
+        keyPoint.setLatitude(dto.getLatitude());
+        keyPoint.setLongitude(dto.getLongitude());
+
+        // 2. Obrada slike samo ako je korisnik zapravo izabrao fajl
+        if (image != null && !image.isEmpty()) {
+            String fileName = UUID.randomUUID() + "_" +
+                    org.springframework.util.StringUtils.cleanPath(image.getOriginalFilename());
+
+            File uploadDir = new File("uploads");
+            if (!uploadDir.exists()) {
+                uploadDir.mkdirs();
+            }
+
+            File destination = new File(uploadDir, fileName);
+            image.transferTo(destination);
+
+            keyPoint.setImage(fileName);
+        } else {
+            keyPoint.setImage(null); // Ili neku default sliku ako želiš
         }
+
+        tour.getKeyPoints().add(keyPoint);
+
+        return ResponseEntity.ok(
+                tourService.save(tour)
+        );
     }
 }

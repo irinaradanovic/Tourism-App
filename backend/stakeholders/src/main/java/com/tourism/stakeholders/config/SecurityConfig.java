@@ -77,6 +77,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/logout", "/api/users/{id}").permitAll()
                         .requestMatchers("/api/users/update-profile").authenticated()
                         .requestMatchers("/api/users/profile").authenticated()
+                        .requestMatchers("/api/users/profile-image").authenticated()
                         .requestMatchers("/api/users/*/toggle-block").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
