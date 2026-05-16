@@ -1,54 +1,84 @@
 <template>
-  <div class="profile-container" v-if="profile">
-    <div class="profile-card">
-      <div class="profile-header">
-        <img
-          :src="profile.profileImage || defaultImage"
-          alt="Profile image"
-          class="profile-image"
-        />
+  <div class="profile-layout" v-if="profile">
+    <div class="profile-container">
+      <div class="profile-card">
+        <div class="profile-header">
+          <img
+            :src="profile.profileImage || defaultImage"
+            alt="Profile image"
+            class="profile-image"
+          />
 
-        <div class="profile-main-info">
-          <h1>{{ profile.firstName || 'Name' }} {{ profile.lastName || '' }}</h1>
-          <p class="username">@{{ profile.username }}</p>
-          <p class="role">{{ profile.role }}</p>
+          <div class="profile-main-info">
+            <h1>{{ profile.firstName || 'Name' }} {{ profile.lastName || '' }}</h1>
+            <p class="username">@{{ profile.username }}</p>
+            <p class="role">{{ profile.role }}</p>
+          </div>
+
+          <div class="profile-stats-buttons">
+            <button class="stats-btn" @click="openModal('followers')">
+              Followers
+            </button>
+            <button class="stats-btn" @click="openModal('following')">
+              Following
+            </button>
+          </div>
         </div>
 
-        <div class="profile-stats-buttons">
-          <button class="stats-btn" @click="openModal('followers')">
-            Followers
-          </button>
-          <button class="stats-btn" @click="openModal('following')">
-            Following
-          </button>
+        <div class="profile-section">
+          <h2>Motto</h2>
+          <p class="motto" v-if="profile.motto">
+            "{{ profile.motto }}"
+          </p>
+          <p v-else class="empty-text">
+            No motto added yet.
+          </p>
+
+          <h2>Biography</h2>
+          <p v-if="profile.biography">
+            {{ profile.biography }}
+          </p>
+          <p v-else class="empty-text">
+            No biography added yet.
+          </p>
         </div>
-      </div>
 
-      <div class="profile-section">
-        <h2>Motto</h2>
-        <p class="motto" v-if="profile.motto">
-          "{{ profile.motto }}"
-        </p>
-        <p v-else class="empty-text">
-          No motto added yet.
-        </p>
-
-        <h2>Biography</h2>
-        <p v-if="profile.biography">
-          {{ profile.biography }}
-        </p>
-        <p v-else class="empty-text">
-          No biography added yet.
-        </p>
-      </div>
-
-      <div class="profile-section">
-        <h2>Email</h2>
-        <p>{{ profile.email }}</p>
+        <div class="profile-section">
+          <h2>Email</h2>
+          <p>{{ profile.email }}</p>
+        </div>
       </div>
     </div>
 
-    <!-- Modal za Followers/Following -->
+    <div class="recommendations-sidebar">
+      <div class="recommendations-card">
+        <h3>Who to follow</h3>
+        
+        <div v-if="loadingRecommendations" class="rec-loading">
+          Loading suggestions...
+        </div>
+
+        <ul v-else-if="recommendations.length > 0" class="rec-list">
+          <li v-for="rec in recommendations" :key="rec.userId" class="rec-item">
+            <div class="rec-user-info" @click="goToProfile(rec.userId)">
+              <span class="rec-username">@{{ rec.username }}</span>
+              <span v-if="rec.mutualFollowersCount > 0" class="rec-mutual">
+                {{ rec.mutualFollowersCount }} mutual
+              </span>
+            </div>
+            
+            <button class="rec-follow-btn" @click="followRecommended(rec.userId)">
+              Follow
+            </button>
+          </li>
+        </ul>
+
+        <p v-else class="empty-text text-center">
+          No recommendations available.
+        </p>
+      </div>
+    </div>
+
     <div v-if="isModalOpen" class="modal-overlay" @click.self="closeModal">
       <div class="modal-content">
         <div class="modal-header">
@@ -88,20 +118,49 @@ export default {
       isModalOpen: false,
       modalTitle: '',
       modalUsers: [],
-      loadingUsers: false
+      loadingUsers: false,
+
+      recommendations: [],
+      loadingRecommendations: false
     }
   },
 
   async created() {
-    try {
-      const response = await userService.getMyProfile()
-      this.profile = response.data
-    } catch (err) {
-      console.error('Error fetching profile:', err)
-    }
+    await this.fetchProfileData();
+    await this.fetchRecommendations();
   },
 
   methods: {
+    async fetchProfileData() {
+      try {
+        const response = await userService.getMyProfile()
+        this.profile = response.data
+      } catch (err) {
+        console.error('Error fetching profile:', err)
+      }
+    },
+
+    async fetchRecommendations() {
+      this.loadingRecommendations = true;
+      try {
+        const response = await followerService.getRecommendations();
+        this.recommendations = response.data;
+      } catch (err) {
+        console.error('Error fetching recommendations:', err);
+      } finally {
+        this.loadingRecommendations = false;
+      }
+    },
+
+    async followRecommended(userId) {
+      try {
+        await followerService.follow(userId);
+        this.recommendations = this.recommendations.filter(u => u.userId !== userId);
+      } catch (err) {
+        console.error('Error following user:', err);
+      }
+    },
+
     async openModal(type) {
       this.isModalOpen = true;
       this.loadingUsers = true;
@@ -141,11 +200,17 @@ export default {
 </script>
 
 <style scoped>
-
-.profile-container {
-  max-width: 900px;
+.profile-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 30px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+}
+
+.profile-container {
+  width: 100%;
 }
 
 .profile-card {
@@ -154,7 +219,6 @@ export default {
   padding: 40px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.06);
 }
-
 
 .profile-header {
   display: flex;
@@ -201,7 +265,6 @@ export default {
   margin-top: 10px;
 }
 
-
 .profile-stats-buttons {
   display: flex;
   gap: 12px;
@@ -224,7 +287,6 @@ export default {
   color: #28a745;
   background-color: #f0fff4;
 }
-
 
 .motto {
   margin-top: 20px;
@@ -260,6 +322,95 @@ export default {
   text-align: center;
 }
 
+.recommendations-sidebar {
+  width: 100%;
+}
+
+.recommendations-card {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  position: sticky;
+  top: 20px;
+}
+
+.recommendations-card h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #2d3748;
+  font-size: 1.25rem;
+  font-weight: 700;
+  border-bottom: 1px solid #edf2f7;
+  padding-bottom: 10px;
+}
+
+.rec-loading {
+  color: #718096;
+  font-style: italic;
+  padding: 10px 0;
+}
+
+.rec-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.rec-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f7fafc;
+}
+
+.rec-item:last-child {
+  border-bottom: none;
+}
+
+.rec-user-info {
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+}
+
+.rec-username {
+  color: #2d3748;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: color 0.2s ease;
+}
+
+.rec-user-info:hover .rec-username {
+  color: #28a745;
+}
+
+.rec-mutual {
+  font-size: 0.8rem;
+  color: #718096;
+  background-color: #edf2f7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 4px;
+  width: max-content;
+}
+
+.rec-follow-btn {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 15px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.rec-follow-btn:hover {
+  background-color: #218838;
+}
 
 .modal-overlay {
   position: fixed;
@@ -341,7 +492,7 @@ export default {
 
 .user-item:hover {
   background-color: #f0fff4;   
-  color: #28a745;             
+  color: #28a745;              
   padding-left: 20px;          
 }
 
@@ -354,6 +505,16 @@ export default {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@media (max-width: 992px) {
+  .profile-layout {
+    grid-template-columns: 1fr; 
+    gap: 20px;
+  }
+  
+  .recommendations-card {
+    position: static;
+  }
+}
 
 @media (max-width: 768px) {
   .profile-header {

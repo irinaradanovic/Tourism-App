@@ -48,5 +48,12 @@ export const followerService = {
     return axios.delete(`${API_URL}/unfollow/${userId}`, {
         headers: { Authorization: `Bearer ${token}` }
     })
+    },
+
+    getRecommendations() {
+        const token = localStorage.getItem('token')
+        return axios.get(`${API_URL}/recommendations`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
     }
 }
