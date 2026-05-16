@@ -7,5 +7,5 @@ import java.util.Optional;
 
 public interface TouristPositionRepository extends MongoRepository<TouristPosition, String> {
 
-    Optional<TouristPosition> findByTouristId(String touristId);
+    Optional<TouristPosition> findByTouristId(Long touristId);
 }

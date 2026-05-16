@@ -23,7 +23,7 @@ public class PositionController {
             Authentication auth,
             @RequestBody Map<String, Double> body) {
 
-        String touristId = auth.getName();
+        Long touristId = (Long) auth.getPrincipal();
         double lat = body.get("lat");
         double lon = body.get("lon");
 
@@ -33,7 +33,7 @@ public class PositionController {
 
     @GetMapping
     public ResponseEntity<TouristPosition> getPosition(Authentication auth) {
-        String touristId = auth.getName();
+        Long touristId = (Long) auth.getPrincipal();
 
         return positionService.getPosition(touristId)
                 .map(ResponseEntity::ok)

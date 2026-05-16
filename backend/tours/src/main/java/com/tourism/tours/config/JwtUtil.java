@@ -27,8 +27,8 @@ public class JwtUtil {
                 .getBody();
     }
 
-    public String extractUserId(String token) {
-        return extractClaims(token).getSubject();
+    public Long extractUserId(String token) {
+        return Long.parseLong(extractClaims(token).getSubject());
     }
 
     public String extractRole(String token) {

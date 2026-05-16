@@ -16,7 +16,7 @@ public class PositionService {
         this.positionRepository = positionRepository;
     }
 
-    public TouristPosition savePosition(String touristId, double lat, double lon) {
+    public TouristPosition savePosition(Long touristId, double lat, double lon) {
         TouristPosition position = positionRepository
                 .findByTouristId(touristId)
                 .orElse(new TouristPosition());
@@ -29,7 +29,7 @@ public class PositionService {
         return positionRepository.save(position);
     }
 
-    public Optional<TouristPosition> getPosition(String touristId) {
+    public Optional<TouristPosition> getPosition(Long touristId) {
         return positionRepository.findByTouristId(touristId);
     }
 }

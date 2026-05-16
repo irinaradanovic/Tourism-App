@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface TourRepository extends MongoRepository<Tour, String> {
 
-    List<Tour> findByAuthorId(String authorId);
+    List<Tour> findByAuthorId(Long authorId);
 
     List<Tour> findByStatus(String status);
 }

@@ -15,7 +15,7 @@ public class TouristPosition {
     private String id;
 
     @Indexed(unique = true)
-    private String touristId;
+    private Long touristId;
 
     private double lat;
     private double lon;

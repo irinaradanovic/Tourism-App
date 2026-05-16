@@ -4,7 +4,7 @@ import com.tourism.tours.dto.CreateKeyPointDTO;
 import com.tourism.tours.dto.CreateTourDTO;
 import com.tourism.tours.model.KeyPoint;
 import com.tourism.tours.model.Tour;
-import com.tourism.tours.security.JwtUtil;
+import com.tourism.tours.config.JwtUtil;
 import com.tourism.tours.service.TourService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
