@@ -93,4 +93,27 @@ public class UserController {
         return ResponseEntity.ok(UserResponseDTO.fromUser(updated));
     }
 
+    @PostMapping("/profile-image")
+    public ResponseEntity<UserProfileDTO> uploadProfileImage(@RequestParam("image") org.springframework.web.multipart.MultipartFile file,
+                                                             Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
+
+        Long userId;
+        try {
+            userId = Long.parseLong(authentication.getName());
+        } catch (NumberFormatException ex) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token subject");
+        }
+
+        if (file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File is empty");
+        }
+
+        User updatedUser = userService.uploadProfileImage(userId, file);
+
+        return ResponseEntity.ok(UserProfileDTO.fromUser(updatedUser));
+    }
+
 }

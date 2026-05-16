@@ -22,6 +22,16 @@ export const userService = {
                 Authorization: `Bearer ${token}`
             }
         })
+    },
+    uploadProfileImage(formData) {
+        const token = localStorage.getItem('token')
+
+        return axios.post(`${API_URL}/profile-image`, formData, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data'
+            }
+        });
     }
 
 }
