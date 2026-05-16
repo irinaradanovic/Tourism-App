@@ -37,10 +37,10 @@ async def get_recommendations(
 ):
     return await service.get_recommendations(current_user_id)
 
-@router.get("/following", response_model=List[FollowerInfo])
+@router.get("/my-followings", response_model=List[FollowerInfo])
 async def get_following_with_data(current_user_id: int = Depends(get_current_user)):
     return await service.get_following_with_data(current_user_id)
 
-@router.get("/followers", response_model=List[FollowerInfo])
+@router.get("/my-followers", response_model=List[FollowerInfo])
 async def get_followers_with_data(current_user_id: int = Depends(get_current_user)):
     return await service.get_followers_with_data(current_user_id)

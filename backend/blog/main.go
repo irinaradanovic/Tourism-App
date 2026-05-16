@@ -5,6 +5,7 @@ import (
 	"blog/model"
 	"blog/repository"
 	"blog/service"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -25,6 +26,11 @@ func main() {
 	}
 
 	db.AutoMigrate(&model.Blog{}, &model.Like{}, &model.Comment{}) //automatsko kreiranje tabele
+
+	err = initializeDB(db, "init_blogs.sql")
+	if err != nil {
+		log.Printf("Error while initializing db: %v", err)
+	}
 
 	jwtSecret := os.Getenv("JWT_SECRET") // cita iz docker-compose
 	if jwtSecret == "" {
@@ -66,4 +72,19 @@ func setupCORS(router *mux.Router) http.Handler {
 
 		router.ServeHTTP(w, r)
 	})
+}
+
+func initializeDB(db *gorm.DB, filePath string) error {
+	skripta, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("ne mogu da pročitam SQL fajl: %w", err)
+	}
+
+	err = db.Exec(string(skripta)).Error
+	if err != nil {
+		return fmt.Errorf("greška pri izvršavanju SQL skripte: %w", err)
+	}
+
+	fmt.Println("SQL skripta uspešno izvršena kroz Go kod!")
+	return nil
 }

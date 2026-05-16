@@ -6,7 +6,7 @@ import AdminUsersView from '../views/AdminUsersView.vue'
 import BlogListView from '../views/BlogListView.vue'
 import CreateBlogView from '../views/CreateBlogView.vue'
 import BlogDetailsView from '../views/BlogDetailsView.vue'
-import ProfileView from '../views/ProfileView.vue'
+import ProfileView from '../views/MyProfileView.vue'
 
 
 const router = createRouter({
@@ -50,7 +50,7 @@ const router = createRouter({
     {
       path: '/profile',
       name: 'profile',
-      component: ProfileView
+      component: MyProfileView
     },
   ]
 })

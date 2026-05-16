@@ -167,6 +167,8 @@ func (h *BlogHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	b.AuthorUsername = h.service.GetUsernameById(ctx, b.AuthorId)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(b)
 }
@@ -202,6 +204,7 @@ func (h *BlogHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	var filtered []model.Blog
 	for _, blog := range blogs {
 		if followingSet[blog.AuthorId] {
+			blog.AuthorUsername = h.service.GetUsernameById(ctx, blog.AuthorId)
 			filtered = append(filtered, blog)
 		}
 	}
