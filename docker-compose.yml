@@ -84,6 +84,25 @@ services:
       - followers_neo4j_data:/data
       - followers_neo4j_logs:/logs
 
+  mongodb_tours:
+    image: mongo:latest
+    container_name: tours-mongodb
+    ports:
+      - 27017:27017
+    volumes:
+      - tours_mongo_data:/data/db
+
+  tours:
+    build:
+      context: ./backend/tours
+    container_name: tours-service
+    ports:
+      - 8083:8083
+    depends_on:
+      - mongodb_tours
+    environment:
+      JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
+
   frontend:
     build:
       context: ./frontend 
@@ -98,3 +117,4 @@ volumes:
   stakeholders_postgres_data:
   followers_neo4j_data:
   followers_neo4j_logs:
+  tours_mongo_data:
