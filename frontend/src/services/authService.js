@@ -1,7 +1,7 @@
 import axios from 'axios'
 import router from '../router'
 
-const API_URL = 'http://localhost:8082/api'
+const API_URL = 'http://localhost:80/api'
 
 axios.interceptors.response.use(
     response => response,

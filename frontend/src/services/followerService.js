@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_URL = 'http://localhost:8000/api/followers' 
+const API_URL = 'http://localhost:80/api/followers' 
 
 export const followerService = {
     

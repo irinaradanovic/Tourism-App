@@ -123,7 +123,21 @@ services:
     ports:
       - "5173:80" 
     restart: always
-    
+
+  gateway:
+    image: nginx:latest
+    container_name: api-gateway
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - blog
+      - stakeholders
+      - followers
+      - tours
+    restart: always
+
 volumes:
   blog_postgres_data:
   stakeholders_postgres_data:

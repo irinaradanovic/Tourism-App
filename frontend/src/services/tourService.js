@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_URL = 'http://localhost:8083/api'
+const API_URL = 'http://localhost:80/api'
 
 function getHeaders() {
   const token = localStorage.getItem('token')
