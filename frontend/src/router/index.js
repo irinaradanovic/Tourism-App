@@ -8,6 +8,7 @@ import CreateBlogView from '../views/CreateBlogView.vue'
 import BlogDetailsView from '../views/BlogDetailsView.vue'
 import MyProfileView from '../views/MyProfileView.vue'
 import UserProfileView from '../views/UserProfileView.vue'
+import PositionSimulatorView from '../views/PositionSimulatorView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -56,7 +57,13 @@ const router = createRouter({
       path: '/:id/profile',
       name: 'user-profile',
       component: UserProfileView
+    },
+    { 
+      path: '/simulator', 
+      name: 'simulator', 
+      component: PositionSimulatorView 
     }
+
   ]
 })
 

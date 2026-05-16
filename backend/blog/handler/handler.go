@@ -257,8 +257,24 @@ func (h *BlogHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized: "+errUser.Error(), http.StatusUnauthorized)
 		return
 	}
+
 	if userRole != "GUIDE" && userRole != "TOURIST" {
 		http.Error(w, "Forbidden: Only guides and tourists can comment", http.StatusForbidden)
+		return
+	}
+
+	// Dohvati blog da bismo znali ko je autor
+	blog, errBlog := h.service.GetBlogById(ctx, blogID)
+	if errBlog != nil {
+		http.Error(w, "Blog not found", http.StatusNotFound)
+		return
+	}
+
+	// Provjeri da li korisnik prati autora (ili je sam autor)
+	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+
+	if !h.service.IsFollowing(ctx, userID, blog.AuthorId, token) {
+		http.Error(w, "Forbidden: You must follow the author to comment", http.StatusForbidden)
 		return
 	}
 
@@ -275,6 +291,7 @@ func (h *BlogHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(comment)
