@@ -66,7 +66,7 @@ const router = createRouter({
     },
     {
       path: '/tours/:id',
-      name: 'tours-id',
+      name: 'tourDetails',
       component: TourDetailsView
     },
 

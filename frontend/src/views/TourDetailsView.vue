@@ -1,5 +1,6 @@
 <template>
-  <div class="page-wrapper">
+  <!-- v-if="tour.id" osigurava da se stranica renderuje TEK kada backend vrati podatke -->
+  <div class="page-wrapper" v-if="tour && tour.id">
     <div class="detail-container">
       <!-- Tour Header -->
       <header class="tour-header">
@@ -11,7 +12,7 @@
       <section class="key-points-section">
         <h3>📍 Key Points</h3>
 
-        <div class="key-points-list">
+        <div class="key-points-list" v-if="tour.keyPoints && tour.keyPoints.length > 0">
           <div v-for="kp in tour.keyPoints" :key="kp.name" class="kp-card">
             <div class="kp-image-wrapper" v-if="kp.image">
               <img :src="'http://localhost:8083/uploads/' + kp.image" alt="Key point image" class="kp-thumb" />
@@ -25,6 +26,7 @@
             </div>
           </div>
         </div>
+        <p v-else class="empty-text">No key points added to this tour yet.</p>
       </section>
 
       <hr class="section-divider" />
@@ -34,18 +36,24 @@
         <h3>➕ Add New Key Point</h3>
 
         <div class="form-card">
+          <!-- INTERAKTIVNA MAPA -->
+          <div class="map-wrapper">
+            <label class="file-label">Click on the map to pin the location:</label>
+            <div id="map" class="leaflet-map-container"></div>
+          </div>
+
           <div class="form-grid">
             <div class="form-group full-width">
-              <input v-model="kp.name" placeholder="Key Point Name" />
+              <input v-model="kp.name" placeholder="Key Point Name (e.g. Museum, Square)" />
             </div>
             <div class="form-group full-width">
               <input v-model="kp.description" placeholder="Short Description" />
             </div>
             <div class="form-group">
-              <input v-model="kp.latitude" placeholder="Latitude (e.g. 45.25)" />
+              <input v-model="kp.latitude" placeholder="Latitude (Click map)" readonly class="readonly-input" />
             </div>
             <div class="form-group">
-              <input v-model="kp.longitude" placeholder="Longitude (e.g. 19.84)" />
+              <input v-model="kp.longitude" placeholder="Longitude (Click map)" readonly class="readonly-input" />
             </div>
             <div class="form-group full-width file-group">
               <label class="file-label">Choose Image File</label>
@@ -53,41 +61,108 @@
             </div>
           </div>
 
-          <button @click="addKeyPoint" class="btn-add">Add Key Point</button>
+          <button @click="addKeyPoint" class="btn-add" :disabled="!kp.latitude">Add Key Point</button>
         </div>
       </section>
     </div>
+  </div>
+  <div v-else class="loading-box">
+    <p>Učitavanje podataka o turi...</p>
   </div>
 </template>
 
 <script>
 import { tourService } from '@/services/tourService'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
 export default {
   data() {
     return {
       tour: {},
-      kp: {},
-      file: null
+      kp: {
+        name: '',
+        description: '',
+        latitude: null,
+        longitude: null
+      },
+      file: null,
+      map: null,
+      marker: null
     }
   },
   async created() {
-    const res = await tourService.getTourById(this.$route.params.id)
-    this.tour = res.data
+    const tourId = this.$route.params.id
+    try {
+      const res = await tourService.getTourById(tourId)
+      this.tour = res.data
+
+      // Pokrećemo mapu čim se HTML elementi generišu
+      this.$nextTick(() => {
+        this.initMap()
+      })
+    } catch (err) {
+      console.error("Greška pri dobavljanju ture:", err)
+    }
   },
   methods: {
+    initMap() {
+      // Inicijalizacija mape (Centrirano npr. na Novi Sad/Srbija regiju)
+      this.map = L.map('map').setView([45.25, 19.84], 13)
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(this.map)
+
+      // Ako tura već ima unete tačke, prikaži ih na mapi kao fiksne markere
+      if (this.tour.keyPoints && this.tour.keyPoints.length > 0) {
+        this.tour.keyPoints.forEach(point => {
+          if (point.latitude && point.longitude) {
+            L.marker([point.latitude, point.longitude])
+                .addTo(this.map)
+                .bindPopup(`<b>${point.name}</b><br>${point.description}`)
+          }
+        })
+      }
+
+      // Klik na mapu postavlja marker i popunjava input polja
+      this.map.on('click', (e) => {
+        const {lat, lng} = e.latlng
+        this.kp.latitude = lat.toFixed(6)
+        this.kp.longitude = lng.toFixed(6)
+
+        if (this.marker) {
+          this.marker.setLatLng(e.latlng)
+        } else {
+          this.marker = L.marker(e.latlng).addTo(this.map)
+        }
+      })
+    },
     handleFile(e) {
       this.file = e.target.files[0]
     },
     async addKeyPoint() {
+      const tourId = this.tour.id || this.$route.params.id
+
+      if (!this.kp.latitude || !this.kp.longitude) {
+        alert("Molimo vas da prvo izaberete lokaciju na mapi klikom.")
+        return
+      }
+
       const formData = new FormData()
       formData.append(
           "data",
-          new Blob([JSON.stringify(this.kp)], { type: "application/json" })
+          new Blob([JSON.stringify(this.kp)], {type: "application/json"})
       )
       formData.append("image", this.file)
-      await tourService.addKeyPoint(this.tour.id, formData)
-      location.reload()
+
+      try {
+        await tourService.addKeyPoint(tourId, formData)
+        location.reload()
+      } catch (err) {
+        console.error("Greška pri slanju ključne tačke:", err)
+        alert("Došlo je do greške prilikom čuvanja na backendu.")
+      }
     }
   }
 }
@@ -100,13 +175,20 @@ export default {
   padding: 40px 20px;
 }
 
+.loading-box {
+  text-align: center;
+  padding: 50px;
+  font-size: 1.2rem;
+  color: #666;
+}
+
 .detail-container {
   max-width: 800px;
   margin: 0 auto;
   background: white;
   padding: 40px;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .tour-header {
@@ -181,6 +263,11 @@ h3 {
   color: #888;
 }
 
+.empty-text {
+  color: #a0aec0;
+  font-style: italic;
+}
+
 .section-divider {
   border: 0;
   height: 2px;
@@ -193,6 +280,26 @@ h3 {
   padding: 25px;
   border-radius: 8px;
   border: 1px solid #eef0f2;
+}
+
+/* STILOVI ZA MAPU */
+.map-wrapper {
+  margin-bottom: 20px;
+}
+
+.leaflet-map-container {
+  height: 320px;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  margin-top: 8px;
+  z-index: 1;
+}
+
+.readonly-input {
+  background-color: #e9ecef;
+  color: #495057;
+  cursor: not-allowed;
 }
 
 .form-grid {
@@ -250,5 +357,10 @@ h3 {
 
 .btn-add:hover {
   background: #218838;
+}
+
+.btn-add:disabled {
+  background: #cbd5e0;
+  cursor: not-allowed;
 }
 </style>

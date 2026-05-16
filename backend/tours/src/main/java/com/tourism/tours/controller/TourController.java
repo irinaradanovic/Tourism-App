@@ -55,35 +55,48 @@ public class TourController {
         );
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<Tour> getTourById(@PathVariable String id) {
+        return ResponseEntity.ok(tourService.getTourById(id));
+    }
+
     @PostMapping("/{tourId}/key-points")
     public ResponseEntity<Tour> addKeyPoint(
             @PathVariable String tourId,
             @RequestPart("data") CreateKeyPointDTO dto,
-            @RequestPart("image") MultipartFile image
+            @RequestPart(value = "image", required = false) MultipartFile image // required = false sprečava pucanje ako nema slike
     ) throws IOException {
 
         Tour tour = tourService.getTourById(tourId);
 
-        String fileName = UUID.randomUUID() + "_" +
-                StringUtils.cleanPath(image.getOriginalFilename());
-
-        File uploadDir = new File("uploads");
-
-        if (!uploadDir.exists()) {
-            uploadDir.mkdirs();
+        // 1. BEZBEDNOSNA PROVERA: Inicijalizuj listu ako je null da izbegneš NullPointerException
+        if (tour.getKeyPoints() == null) {
+            tour.setKeyPoints(new java.util.ArrayList<>());
         }
 
-        File destination = new File(uploadDir, fileName);
-
-        image.transferTo(destination);
-
         KeyPoint keyPoint = new KeyPoint();
-
         keyPoint.setName(dto.getName());
         keyPoint.setDescription(dto.getDescription());
         keyPoint.setLatitude(dto.getLatitude());
         keyPoint.setLongitude(dto.getLongitude());
-        keyPoint.setImage(fileName);
+
+        // 2. Obrada slike samo ako je korisnik zapravo izabrao fajl
+        if (image != null && !image.isEmpty()) {
+            String fileName = UUID.randomUUID() + "_" +
+                    org.springframework.util.StringUtils.cleanPath(image.getOriginalFilename());
+
+            File uploadDir = new File("uploads");
+            if (!uploadDir.exists()) {
+                uploadDir.mkdirs();
+            }
+
+            File destination = new File(uploadDir, fileName);
+            image.transferTo(destination);
+
+            keyPoint.setImage(fileName);
+        } else {
+            keyPoint.setImage(null); // Ili neku default sliku ako želiš
+        }
 
         tour.getKeyPoints().add(keyPoint);
 
