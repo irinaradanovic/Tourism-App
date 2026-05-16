@@ -14,6 +14,14 @@ export const userService = {
             }
         })
     },
+
+    getUserProfile(userId) {
+        const token = localStorage.getItem('token')
+        return axios.get(`${API_URL}/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+    },
+    
     toggleBlockUser(userId) {
         const token = localStorage.getItem('token')
 

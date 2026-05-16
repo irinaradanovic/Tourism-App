@@ -18,6 +18,7 @@ type IBlogRepository interface {
 	GetCommentsByBlogID(ctx context.Context, blogID string) ([]model.Comment, error)
 	UpdateComment(ctx context.Context, comment model.Comment) error
 	GetCommentByID(ctx context.Context, id string) (model.Comment, error)
+	GetByAuthorID(ctx context.Context, authorId string) ([]model.Blog, error)
 }
 
 type BlogRepository struct {
@@ -89,4 +90,19 @@ func (r *BlogRepository) RemoveLike(ctx context.Context, blogId string, userId s
 func (r *BlogRepository) AddLike(ctx context.Context, newLike model.Like) error {
 	// ako nije pronadjeno, lajkuj blog
 	return r.db.WithContext(ctx).Create(&newLike).Error
+}
+
+func (r *BlogRepository) GetByAuthorID(ctx context.Context, authorId string) ([]model.Blog, error) {
+	var blogs []model.Blog
+	result := r.db.WithContext(ctx).Where("author_id = ?", authorId).Find(&blogs)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	for i := range blogs {
+		var count int64
+		r.db.WithContext(ctx).Model(&model.Like{}).Where("blog_id = ?", blogs[i].ID).Count(&count)
+		blogs[i].Likes = count
+	}
+
+	return blogs, nil
 }

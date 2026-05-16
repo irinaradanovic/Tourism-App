@@ -24,6 +24,7 @@ services:
       DB_URL: "host=db_blog user=postgres password=turizamSifra dbname=blog_db port=5432 sslmode=disable"
       JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
       FOLLOWERS_SERVICE_URL: http://followers:8000/api/followers
+      STAKEHOLDERS_SERVICE_URL: http://stakeholders:8082/api/users
     volumes:
       - ./uploads:/root/uploads
 
@@ -83,6 +84,17 @@ services:
     volumes:
       - followers_neo4j_data:/data
       - followers_neo4j_logs:/logs
+      - ./neo-init:/var/lib/neo4j/import
+    command: |
+      bash -c "
+      /startup/docker-entrypoint.sh neo4j &
+      echo 'Waiting for Neo4j to start...'
+      until wget --spider -q http://localhost:7474/ 2>&1; do sleep 1; done
+      echo 'Neo4j started. Running initialization script...'
+      cypher-shell -u neo4j -p turizamSifra -f /var/lib/neo4j/import/followers.cypher
+      echo 'Initialization complete.'
+      wait
+      "
 
   mongodb_tours:
     image: mongo:latest

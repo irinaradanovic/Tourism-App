@@ -52,7 +52,8 @@ class FollowerService:
         return await self._populate_usernames(ids)
     
 
-    #util
+    # util
+
     async def _populate_usernames(self, user_ids: List[int]) -> List[FollowerInfo]:
         populated_list = []
         async with httpx.AsyncClient() as client:

@@ -55,7 +55,7 @@ func (s *BlogService) IsFollowing(ctx context.Context, followerId, followedId st
 		return true
 	}
 
-	url := os.Getenv("FOLLOWERS_SERVICE_URL") + "/following"
+	url := os.Getenv("FOLLOWERS_SERVICE_URL") + "/my-followings"
 	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 
@@ -78,7 +78,7 @@ func (s *BlogService) IsFollowing(ctx context.Context, followerId, followedId st
 }
 
 func (s *BlogService) GetFollowingIds(ctx context.Context, userId string, token string) ([]string, error) {
-	url := os.Getenv("FOLLOWERS_SERVICE_URL") + "/following"
+	url := os.Getenv("FOLLOWERS_SERVICE_URL") + "/my-followings"
 	req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 
@@ -99,6 +99,27 @@ func (s *BlogService) GetFollowingIds(ctx context.Context, userId string, token 
 	return ids, nil
 }
 
+func (s *BlogService) GetUsernameById(ctx context.Context, userId string) string {
+	url := os.Getenv("STAKEHOLDERS_SERVICE_URL") + "/" + userId
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "Unknown"
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		return "Unknown"
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Username string `json:"username"`
+	}
+	json.NewDecoder(resp.Body).Decode(&result)
+	return result.Username
+}
+
 func (s *BlogService) GetAllBlogs(ctx context.Context) ([]model.Blog, error) {
 	return s.repo.GetAll(ctx)
 }
@@ -109,7 +130,6 @@ func (s *BlogService) GetCommentsByBlogID(ctx context.Context, blogID string) ([
 	return s.repo.GetCommentsByBlogID(ctx, blogID)
 }
 
-// 6. Blog creation
 func (s *BlogService) CreateBlog(ctx context.Context, dto CreateBlogDTO, authorId string) (model.Blog, error) { // posle dodati da se blog povezuje sa korisnikom koji ga je kreirao
 	if dto.Title == "" || dto.Description == "" {
 		return model.Blog{}, errors.New("title and description are required")
@@ -135,7 +155,6 @@ func (s *BlogService) CreateBlog(ctx context.Context, dto CreateBlogDTO, authorI
 	return blog, nil
 }
 
-// 8.
 func (s *BlogService) ToggleLike(ctx context.Context, blogId string, userId string) error {
 	errLike := s.repo.IsLiked(ctx, blogId, userId)
 
@@ -199,4 +218,8 @@ func (s *BlogService) EditComment(ctx context.Context, dto EditCommentDTO) (mode
 	}
 	return comment, nil
 
+}
+
+func (s *BlogService) GetBlogsByAuthor(ctx context.Context, authorId string) ([]model.Blog, error) {
+	return s.repo.GetByAuthorID(ctx, authorId)
 }

@@ -6,7 +6,8 @@ import AdminUsersView from '../views/AdminUsersView.vue'
 import BlogListView from '../views/BlogListView.vue'
 import CreateBlogView from '../views/CreateBlogView.vue'
 import BlogDetailsView from '../views/BlogDetailsView.vue'
-import ProfileView from '../views/ProfileView.vue'
+import MyProfileView from '../views/MyProfileView.vue'
+import UserProfileView from '../views/UserProfileView.vue'
 import PositionSimulatorView from '../views/PositionSimulatorView.vue'
 
 const router = createRouter({
@@ -50,13 +51,19 @@ const router = createRouter({
     {
       path: '/profile',
       name: 'profile',
-      component: ProfileView
+      component: MyProfileView
+    },
+    {
+      path: '/:id/profile',
+      name: 'user-profile',
+      component: UserProfileView
     },
     { 
       path: '/simulator', 
       name: 'simulator', 
       component: PositionSimulatorView 
-    },
+    }
+
   ]
 })
 
