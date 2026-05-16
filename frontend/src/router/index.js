@@ -9,6 +9,9 @@ import BlogDetailsView from '../views/BlogDetailsView.vue'
 import MyProfileView from '../views/MyProfileView.vue'
 import UserProfileView from '../views/UserProfileView.vue'
 import PositionSimulatorView from '../views/PositionSimulatorView.vue'
+import CreateTourView from "@/views/CreateTourView.vue";
+import MyToursView from "@/views/MyToursView.vue";
+import TourDetailsView from "@/views/TourDetailsView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -62,7 +65,22 @@ const router = createRouter({
       path: '/simulator', 
       name: 'simulator', 
       component: PositionSimulatorView 
-    }
+    },
+    {
+      path: '/create-tour',
+      name: 'create-tour',
+      component: CreateTourView
+    },
+    {
+      path: '/my-tours',
+      name: 'my-tours',
+      component: MyToursView
+    },
+    {
+      path: '/tours/:id',
+      name: 'tourDetails',
+      component: TourDetailsView
+    },
 
   ]
 })

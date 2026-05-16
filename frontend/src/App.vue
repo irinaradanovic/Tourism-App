@@ -14,6 +14,7 @@
         <template v-if="user">
           <router-link to="/profile">My Profile</router-link>
 
+          <router-link to="/simulator">Simulator</router-link>
           <!-- GUIDE ONLY -->
           <template v-if="user.role === 'GUIDE'">
             <router-link to="/create-tour">Create Tour</router-link>

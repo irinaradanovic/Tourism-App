@@ -3,11 +3,18 @@
     <div class="profile-container">
       <div class="profile-card">
         <div class="profile-header">
-          <img
-            :src="profile.profileImage || defaultImage"
-            alt="Profile image"
-            class="profile-image"
-          />
+          <div class="image-upload-wrapper">
+           <img
+             :src="profile.profileImage || defaultImage"
+             alt="Profile image"
+             class="profile-image"
+           />
+           <label class="upload-overlay">
+             <span class="upload-icon">📷</span>
+             <span class="upload-text">Change Photo</span>
+             <input type="file" @change="handleImageUpload" accept="image/*" class="file-input" />
+           </label>
+          </div>
 
           <div class="profile-main-info">
             <h1>{{ profile.firstName || 'Name' }} {{ profile.lastName || '' }}</h1>
@@ -184,6 +191,22 @@ export default {
         }
       }
       this.loadingUsers = false;
+    },
+
+    async handleImageUpload(e) {
+      const file = e.target.files[0]
+      if (!file) return 
+
+      const formData = new FormData()
+      formData.append('image', file)
+
+      try {
+        await userService.uploadProfileImage(formData)
+        this.fetchProfileData()
+      } catch (err) {
+        console.error('Error uploading profile image:', err)
+        alert('Failed to upload image. Please try again.')
+      }
     },
     
     goToProfile(userId) {
@@ -530,5 +553,56 @@ export default {
   .profile-card {
     padding: 25px;
   }
-}
+  .image-upload-wrapper {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .image-upload-wrapper .profile-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .upload-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    cursor: pointer;
+    transition: opacity 0.3s ease;
+  }
+
+  .image-upload-wrapper:hover .upload-overlay {
+    opacity: 1;
+  }
+
+  .upload-icon {
+    font-size: 1.4rem;
+    margin-bottom: 4px;
+  }
+
+  .upload-text {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .file-input {
+    display: none;
+  }
+} 
 </style>
