@@ -6,8 +6,8 @@ import AdminUsersView from '../views/AdminUsersView.vue'
 import BlogListView from '../views/BlogListView.vue'
 import CreateBlogView from '../views/CreateBlogView.vue'
 import BlogDetailsView from '../views/BlogDetailsView.vue'
-import ProfileView from '../views/MyProfileView.vue'
-
+import MyProfileView from '../views/MyProfileView.vue'
+import UserProfileView from '../views/UserProfileView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -52,6 +52,11 @@ const router = createRouter({
       name: 'profile',
       component: MyProfileView
     },
+    {
+      path: '/:id/profile',
+      name: 'user-profile',
+      component: UserProfileView
+    }
   ]
 })
 

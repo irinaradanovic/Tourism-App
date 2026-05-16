@@ -20,5 +20,19 @@ export const followerService = {
                 Authorization: `Bearer ${token}`
             }
         })
+    },
+
+    getUserFollowers(userId) {
+        const token = localStorage.getItem('token')
+        return axios.get(`${API_URL}/${userId}/followers`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+    },
+
+    getUserFollowing(userId) {
+        const token = localStorage.getItem('token')
+        return axios.get(`${API_URL}/${userId}/followings`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
     }
 }

@@ -44,3 +44,11 @@ async def get_following_with_data(current_user_id: int = Depends(get_current_use
 @router.get("/my-followers", response_model=List[FollowerInfo])
 async def get_followers_with_data(current_user_id: int = Depends(get_current_user)):
     return await service.get_followers_with_data(current_user_id)
+
+@router.get("/{userId}/followings", response_model=List[FollowerInfo])
+async def get_user_following(userId: int):
+    return await service.get_following_with_data(userId)
+
+@router.get("/{userId}/followers", response_model=List[FollowerInfo])
+async def get_user_followers(userId: int):
+    return await service.get_followers_with_data(userId)

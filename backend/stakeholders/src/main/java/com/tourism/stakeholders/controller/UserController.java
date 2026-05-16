@@ -31,12 +31,12 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable Long id) {
+    public ResponseEntity<UserProfileDTO> getUserById(@PathVariable Long id) {
         User user = userService.getById(id);
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
         }
-        return ResponseEntity.ok(UserResponseDTO.fromUser(user));
+        return ResponseEntity.ok(UserProfileDTO.fromUser(user));
     }
     
     @PutMapping("/update-profile")
