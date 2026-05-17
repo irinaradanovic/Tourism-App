@@ -48,12 +48,11 @@ func main() {
 	r.HandleFunc("/blogs/author/{authorId}", hand.GetBlogsByAuthor).Methods("GET")
 	r.HandleFunc("/blogs/{id}", hand.GetOne).Methods("GET")
 	r.HandleFunc("/blogs/{id}/like", hand.LikeBlog).Methods("POST")
-
-	// sve sto se nalazi u folderu /uploads bice dostupno na ruti /uploads/ime_slike.jpg
-	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 	r.HandleFunc("/blogs/{id}/comments", hand.AddComment).Methods("POST")
 	r.HandleFunc("/blogs/{id}/comments", hand.GetComments).Methods("GET")
 	r.HandleFunc("/blogs/{blogId}/comments/{commentId}", hand.EditComment).Methods("PATCH")
+	// sve sto se nalazi u folderu /uploads bice dostupno na ruti /uploads/ime_slike.jpg
+	r.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("./uploads"))))
 
 	log.Println("Running on port 8081...")
 	log.Fatal(http.ListenAndServe(":8081", setupCORS(r)))
@@ -62,7 +61,7 @@ func main() {
 func setupCORS(router *mux.Router) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 

@@ -12,6 +12,7 @@
       <article class="blog-content">
         {{ blog.description }}
       </article>
+
       <div class="image-gallery" v-if="blog.images && blog.images.length > 0">
         <h3>Galerija slika</h3>
         <div class="gallery-grid">
@@ -32,6 +33,35 @@
           <p class="like-text">Like this blog? Leave a like!</p>
         </div>
       </footer>
+
+      <!-- Komentari -->
+      <div class="comments-section">
+        <h3>Komentari</h3>
+
+        <!-- Forma za novi komentar -->
+        <div class="comment-form">
+          <textarea
+            v-model="newComment"
+            placeholder="Napišite komentar... (morate pratiti autora)"
+            rows="3"
+          ></textarea>
+          <button @click="submitComment" class="btn-comment">Pošalji komentar</button>
+          <p v-if="commentError" class="comment-error">{{ commentError }}</p>
+        </div>
+
+        <!-- Lista komentara -->
+        <div v-if="comments.length === 0" class="no-comments">
+          Nema komentara još.
+        </div>
+        <div v-for="comment in comments" :key="comment.id" class="comment-card">
+          <div class="comment-header">
+            <span class="comment-author">👤 {{ comment.authorId }}</span>
+            <span class="comment-date">{{ formatDate(comment.created_at) }}</span>
+          </div>
+          <p class="comment-text">{{ comment.content }}</p>
+        </div>
+      </div>
+
     </div>
   </div>
 </template>
@@ -41,13 +71,17 @@ import { blogService } from '@/services/blogService';
 
 export default {
   data() {
-    return { 
+    return {
       blog: null,
-      isLiked: false 
+      isLiked: false,
+      comments: [],
+      newComment: '',
+      commentError: ''
     };
   },
   async created() {
-    this.fetchBlog();
+    await this.fetchBlog();
+    await this.fetchComments();
   },
   methods: {
     async fetchBlog() {
@@ -55,11 +89,38 @@ export default {
       const res = await blogService.getBlogById(id);
       this.blog = res.data;
     },
+    async fetchComments() {
+      try {
+        const id = this.$route.params.id;
+        const res = await blogService.getComments(id);
+        this.comments = res.data || [];
+      } catch (err) {
+        console.error('Error fetching comments:', err);
+      }
+    },
+    async submitComment() {
+      this.commentError = '';
+      if (!this.newComment.trim()) {
+        this.commentError = 'Komentar ne može biti prazan.';
+        return;
+      }
+      try {
+        await blogService.addComment(this.blog.id, { content: this.newComment });
+        this.newComment = '';
+        await this.fetchComments();
+      } catch (err) {
+        if (err.response && err.response.status === 403) {
+          this.commentError = 'Morate pratiti autora da biste komentarisali.';
+        } else {
+          this.commentError = 'Greška pri slanju komentara.';
+        }
+      }
+    },
     async handleLike() {
       try {
         await blogService.toggleLike(this.blog.id);
-        this.isLiked = !this.isLiked; 
-        this.fetchBlog(); // refresh when liked
+        this.isLiked = !this.isLiked;
+        this.fetchBlog();
       } catch (err) {
         alert("You have to log in in order to like this blog.");
       }
@@ -113,10 +174,9 @@ export default {
   font-size: 1.1rem;
   line-height: 1.8;
   color: #34495e;
-  white-space: pre-wrap; 
+  white-space: pre-wrap;
   margin-bottom: 40px;
 }
-
 
 .image-gallery h3 {
   margin-bottom: 15px;
@@ -125,17 +185,16 @@ export default {
 
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); 
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 20px;
   margin-bottom: 40px;
 }
 
-
 .thumbnail {
   width: 100%;
-  height: 200px; 
+  height: 200px;
   object-fit: cover;
-  border-radius: 10px; 
+  border-radius: 10px;
   cursor: pointer;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   border: 1px solid #eee;
@@ -150,6 +209,7 @@ export default {
   border-top: 2px solid #f0f0f0;
   padding-top: 30px;
   text-align: center;
+  margin-bottom: 40px;
 }
 
 .like-button {
@@ -190,5 +250,86 @@ export default {
   margin-top: 10px;
   color: #95a5a6;
   font-size: 0.9rem;
+}
+
+/* Komentari */
+.comments-section {
+  border-top: 2px solid #f0f0f0;
+  padding-top: 30px;
+}
+
+.comments-section h3 {
+  color: #2c3e50;
+  margin-bottom: 20px;
+  font-size: 1.4rem;
+}
+
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.comment-form textarea {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.btn-comment {
+  align-self: flex-end;
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.btn-comment:hover {
+  background: #218838;
+}
+
+.comment-error {
+  color: #e74c3c;
+  font-size: 0.9rem;
+}
+
+.no-comments {
+  color: #95a5a6;
+  font-style: italic;
+  padding: 20px 0;
+}
+
+.comment-card {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  color: #7f8c8d;
+}
+
+.comment-author {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.comment-text {
+  color: #34495e;
+  line-height: 1.5;
+  margin: 0;
 }
 </style>

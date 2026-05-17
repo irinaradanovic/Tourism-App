@@ -28,7 +28,6 @@ export const blogService = {
           'Content-Type': 'multipart/form-data'
         }
       });
-
       router.push({ name: 'blogDetails', params: { id: res.data.id } });
       return res.data;
     } catch (err) {
@@ -45,9 +44,23 @@ export const blogService = {
   },
 
   getBlogsByAuthor(authorId) {
-    const token = localStorage.getItem('token')
-    return axios.get(`http://localhost:8081/blogs/author/${authorId}`, {
+    const token = localStorage.getItem('token');
+    return axios.get(`${API_URL}/blogs/author/${authorId}`, {
       headers: { Authorization: `Bearer ${token}` }
-    })
-}
+    });
+  },
+
+  getComments(blogId) {
+    const token = localStorage.getItem('token');
+    return axios.get(`${API_URL}/blogs/${blogId}/comments`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  },
+
+  addComment(blogId, data) {
+    const token = localStorage.getItem('token');
+    return axios.post(`${API_URL}/blogs/${blogId}/comments`, data, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  }
 };
