@@ -26,6 +26,7 @@ type Comment struct {
 	ID        string    `gorm:"primaryKey" json:"id"`
 	BlogID    string    `json:"blog_id"`
 	AuthorID  string    `json:"author_id"`
+	AuthorUsername string    `gorm:"-" json:"authorUsername,omitempty"`
 	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"created_at"`
 	EditedAt  time.Time `json:"edited_at,omitempty"`

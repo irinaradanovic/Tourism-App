@@ -42,7 +42,11 @@ export default {
           this.$router.push('/')
         }
       } catch (e) {
-        this.message = 'Invalid username or password!'
+        if (e.response && e.response.data) {
+          this.message = e.response.data.error
+        } else {
+          this.message = 'Invalid username or password!'
+        }
       }
     }
   }

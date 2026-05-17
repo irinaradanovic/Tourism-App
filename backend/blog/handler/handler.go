@@ -292,22 +292,30 @@ func (h *BlogHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+    comment.AuthorUsername = h.service.GetUsernameById(ctx, comment.AuthorID)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(comment)
 }
 
 func (h *BlogHandler) GetComments(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	vars := mux.Vars(r)
-	blogID := vars["id"]
-	comments, err := h.service.GetCommentsByBlogID(ctx, blogID)
-	if err != nil {
-		http.Error(w, "Error while getting comments", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(comments)
+    ctx := r.Context()
+    vars := mux.Vars(r)
+    blogID := vars["id"]
+
+    comments, err := h.service.GetCommentsByBlogID(ctx, blogID)
+    if err != nil {
+        http.Error(w, "Error while getting comments", http.StatusInternalServerError)
+        return
+    }
+
+    for i := range comments {
+        comments[i].AuthorUsername = h.service.GetUsernameById(ctx, comments[i].AuthorID)
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(comments)
 }
 
 func (h *BlogHandler) EditComment(w http.ResponseWriter, r *http.Request) {

@@ -55,7 +55,7 @@
         </div>
         <div v-for="comment in comments" :key="comment.id" class="comment-card">
           <div class="comment-header">
-            <span class="comment-author">👤 {{ comment.authorId }}</span>
+            <span class="comment-author">👤 {{ comment.authorUsername || comment.author_id }}</span>
             <span class="comment-date">{{ formatDate(comment.created_at) }}</span>
           </div>
           <p class="comment-text">{{ comment.content }}</p>
