@@ -45,7 +45,9 @@ export const tourService = {
     return axios.delete(`${API_URL}/tours/${tourId}/keypoints/${index}`, { headers: getHeaders() })
   },
 
-  addReview(tourId, review) {
-    return axios.post(`${API_URL}/tours/${tourId}/reviews`, review, { headers: getHeaders() })
-  }
+addReview(tourId, reviewFormData) {
+  return axios.post(`${API_URL}/tours/${tourId}/reviews`, reviewFormData, {
+    headers: { ...getHeaders(), 'Content-Type': 'multipart/form-data' }
+  })
+}
 }

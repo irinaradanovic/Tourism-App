@@ -29,4 +29,6 @@ public class Tour {
     private TourStatus status = TourStatus.DRAFT;
 
     private List<KeyPoint> keyPoints = new ArrayList<>();
+
+    private List<Review> reviews = new ArrayList<>();
 }
