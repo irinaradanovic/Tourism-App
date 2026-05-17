@@ -6,14 +6,20 @@ import com.tourism.tours.model.KeyPoint;
 import com.tourism.tours.model.Tour;
 import com.tourism.tours.config.JwtUtil;
 import com.tourism.tours.service.TourService;
+import com.tourism.tours.dto.ReviewDTO;
+import com.tourism.tours.model.Review;
+import com.tourism.tours.dto.AddReviewDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -57,6 +63,7 @@ public class TourController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Tour> getTourById(@PathVariable String id) {
+                System.out.println("GETTOUR hit");
         return ResponseEntity.ok(tourService.getTourById(id));
     }
 
@@ -103,5 +110,21 @@ public class TourController {
         return ResponseEntity.ok(
                 tourService.save(tour)
         );
+    }
+    @PostMapping("/{tourId}/reviews")
+    public ResponseEntity<Tour> addReview(
+            @PathVariable String tourId,
+            @RequestPart("data") AddReviewDTO dto,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
+            @RequestHeader("Authorization") String authHeader
+    ) throws IOException {
+
+        String token = authHeader.substring(7);
+        Long userId = jwtUtil.extractUserId(token);
+        System.out.println("addReview hit");
+
+        Tour updated = tourService.addReview(tourId, dto, userId, images);
+        //Tour updated = tourService.addReview(tourId, dto, userId);
+        return ResponseEntity.ok(updated);
     }
 }
