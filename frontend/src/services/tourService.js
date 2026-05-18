@@ -34,15 +34,15 @@ export const tourService = {
   },
 
   addKeyPoint(tourId, keyPoint) {
-    return axios.post(`${API_URL}/tours/${tourId}/keypoints`, keyPoint, { headers: getHeaders() })
+    return axios.post(`${API_URL}/tours/${tourId}/key-points`, keyPoint, { headers: getHeaders() })
   },
 
   updateKeyPoint(tourId, index, keyPoint) {
-    return axios.put(`${API_URL}/tours/${tourId}/keypoints/${index}`, keyPoint, { headers: getHeaders() })
+    return axios.put(`${API_URL}/tours/${tourId}/key-points/${index}`, keyPoint, { headers: getHeaders() })
   },
 
   deleteKeyPoint(tourId, index) {
-    return axios.delete(`${API_URL}/tours/${tourId}/keypoints/${index}`, { headers: getHeaders() })
+    return axios.delete(`${API_URL}/tours/${tourId}/key-points/${index}`, { headers: getHeaders() })
   },
 
 addReview(tourId, reviewFormData) {

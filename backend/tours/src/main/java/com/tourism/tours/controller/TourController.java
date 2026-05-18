@@ -99,6 +99,14 @@ public class TourController {
 
             File destination = new File(uploadDir, fileName);
             image.transferTo(destination);
+                        /*/ MISLIM DA TREBA DA SE IZMENI SA OVIM OVIH PAR LINIJA IZNAD
+               Path uploadDir = Paths.get("uploads", "blogs");
+            Files.createDirectories(uploadDir);
+
+            Path destination = uploadDir.resolve(fileName);
+            image.transferTo(destination);
+
+             */
 
             keyPoint.setImage(fileName);
         } else {
@@ -126,5 +134,34 @@ public class TourController {
         Tour updated = tourService.addReview(tourId, dto, userId, images);
         //Tour updated = tourService.addReview(tourId, dto, userId);
         return ResponseEntity.ok(updated);
+    }
+    @PutMapping("/{tourId}/key-points/{index}")
+    public ResponseEntity<Tour> updateKeyPoint(
+            @PathVariable String tourId,
+            @PathVariable int index,
+            @RequestPart("data") CreateKeyPointDTO dto,
+            @RequestPart(value = "image", required = false) MultipartFile image,
+            @RequestHeader("Authorization") String authHeader
+    ) throws IOException {
+
+        String token = authHeader.substring(7);
+        Long userId = jwtUtil.extractUserId(token);
+        String role = jwtUtil.extractRole(token);
+
+        Tour updated = tourService.updateKeyPoint(tourId, index, dto, image, userId, role);
+        return ResponseEntity.ok(updated);
+    }
+    @DeleteMapping("/{tourId}/key-points/{index}")
+    public ResponseEntity<Tour> deleteKeyPoint(
+            @PathVariable String tourId,
+            @PathVariable int index,
+            @RequestHeader("Authorization") String authHeader
+    ) {
+        String token = authHeader.substring(7);
+        Long userId = jwtUtil.extractUserId(token);
+        String role = jwtUtil.extractRole(token);
+
+        Tour deleted = tourService.deleteKeyPoint(tourId,index,userId,role);
+        return ResponseEntity.ok(deleted);
     }
 }

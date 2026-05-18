@@ -13,7 +13,7 @@
         <h3>📍 Key Points</h3>
 
         <div class="key-points-list" v-if="tour.keyPoints && tour.keyPoints.length > 0">
-          <div v-for="kp in tour.keyPoints" :key="kp.name" class="kp-card">
+          <div v-for="(kp,index) in tour.keyPoints" :key="kp.name + '-' + index" class="kp-card">
             <div class="kp-image-wrapper" v-if="kp.image">
               <img :src="'http://localhost:8083/uploads/' + kp.image" alt="Key point image" class="kp-thumb" />
             </div>
@@ -22,6 +22,10 @@
               <p>{{ kp.description }}</p>
               <div class="kp-coordinates" v-if="kp.latitude && kp.longitude">
                 🌐 {{ kp.latitude }}, {{ kp.longitude }}
+              </div>
+              <div class="kp-actions" v-if="canManageKeyPoints">
+                <button class="btn-edit" @click="startEditKeyPoint(index)">Edit</button>
+                <button class="btn-delete" @click="deleteKeyPoint(index)">Delete</button>
               </div>
             </div>
           </div>
@@ -60,8 +64,14 @@
               <input type="file" @change="handleFile" class="file-input" />
             </div>
           </div>
-
-          <button @click="addKeyPoint" class="btn-add" :disabled="!kp.latitude">Add Key Point</button>
+          <button
+            @click="editingIndex === null ? addKeyPoint() : updateKeyPoint()"
+            class="btn-add"
+            :disabled="!kp.latitude"
+          >
+            {{ editingIndex === null ? 'Add Key Point' : 'Save Changes' }}
+          </button>
+          <button v-if="editingIndex !== null" @click="cancelEdit" class="btn-cancel">Cancel</button>
         </div>
       </section>
     </div>
@@ -84,15 +94,20 @@ export default {
         name: '',
         description: '',
         latitude: null,
-        longitude: null
+        longitude: null,
       },
       file: null,
       map: null,
-      marker: null
+      marker: null,
+      polyline: null,
+      keyPointMarkers: [],
+      editingIndex:null,
+      currentUserId: null
     }
   },
   async created() {
     const tourId = this.$route.params.id
+    this.currentUserId = this.getCurrentUserId()
     try {
       const res = await tourService.getTourById(tourId)
       this.tour = res.data
@@ -105,29 +120,28 @@ export default {
       console.error("Greška pri dobavljanju ture:", err)
     }
   },
+  computed: {
+    canManageKeyPoints() {
+      return (
+        this.currentUserId !== null &&
+        this.tour &&
+        String(this.tour.authorId) === String(this.currentUserId)
+      )
+    }
+  },
   methods: {
-    initMap() {
-      // Inicijalizacija mape (Centrirano npr. na Novi Sad/Srbija regiju)
+     initMap() {
       this.map = L.map('map').setView([45.25, 19.84], 13)
 
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
       }).addTo(this.map)
 
-      // Ako tura već ima unete tačke, prikaži ih na mapi kao fiksne markere
-      if (this.tour.keyPoints && this.tour.keyPoints.length > 0) {
-        this.tour.keyPoints.forEach(point => {
-          if (point.latitude && point.longitude) {
-            L.marker([point.latitude, point.longitude])
-                .addTo(this.map)
-                .bindPopup(`<b>${point.name}</b><br>${point.description}`)
-          }
-        })
-      }
+      this.renderKeyPoints()
 
       // Klik na mapu postavlja marker i popunjava input polja
       this.map.on('click', (e) => {
-        const {lat, lng} = e.latlng
+        const { lat, lng } = e.latlng
         this.kp.latitude = lat.toFixed(6)
         this.kp.longitude = lng.toFixed(6)
 
@@ -163,7 +177,117 @@ export default {
         console.error("Greška pri slanju ključne tačke:", err)
         alert("Došlo je do greške prilikom čuvanja na backendu.")
       }
-    }
+    },
+    renderKeyPoints() {
+      if (!this.map) return
+
+      // Ocisti prethodne markere i liniju
+      this.keyPointMarkers.forEach(m => this.map.removeLayer(m))
+      this.keyPointMarkers = []
+      if (this.polyline) {
+        this.map.removeLayer(this.polyline)
+        this.polyline = null
+      }
+
+      const latLngs = []
+
+      if (this.tour.keyPoints && this.tour.keyPoints.length > 0) {
+        this.tour.keyPoints.forEach(point => {
+          if (point.latitude && point.longitude) {
+            const latLng = [point.latitude, point.longitude]
+            latLngs.push(latLng)
+
+            const marker = L.marker(latLng)
+              .addTo(this.map)
+              .bindPopup(`<b>${point.name}</b><br>${point.description}`)
+
+            this.keyPointMarkers.push(marker)
+          }
+        })
+      }
+
+      if (latLngs.length >= 2) {
+        this.polyline = L.polyline(latLngs, {
+          color: '#2c7be5',
+          weight: 4,
+          opacity: 0.85
+        }).addTo(this.map)
+
+        this.map.fitBounds(this.polyline.getBounds(), { padding: [20, 20] })
+      }
+    },
+    getCurrentUserId() {
+      const token = localStorage.getItem('token')
+      if (!token) return null
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        return payload.sub || payload.userId || payload.id || null
+      } catch (_) {
+        return null
+      }
+    },
+    startEditKeyPoint(index) {
+      const point = this.tour.keyPoints[index]
+      this.kp = {
+        name: point.name,
+        description: point.description,
+        latitude: point.latitude,
+        longitude: point.longitude
+      }
+      this.editingIndex = index
+    },
+    async updateKeyPoint() {
+      const tourId = this.tour.id || this.$route.params.id
+      if (!this.kp.latitude || !this.kp.longitude) {
+        alert("Molimo vas da prvo izaberete lokaciju na mapi klikom.")
+        return
+      }
+
+      const formData = new FormData()
+      formData.append("data", new Blob([JSON.stringify(this.kp)], { type: "application/json" }))
+      if (this.file) {
+        formData.append("image", this.file)
+      }
+
+      try {
+        await tourService.updateKeyPoint(tourId, this.editingIndex, formData)
+        await this.fetchTour()
+        this.resetForm()
+      } catch (err) {
+        console.error("Greška pri izmeni ključne tačke:", err)
+        alert("Došlo je do greške prilikom izmene.")
+      }
+    },
+    cancelEdit() {
+      this.resetForm()
+    },
+    resetForm() {
+      this.kp = { name: '', description: '', latitude: null, longitude: null }
+      this.file = null
+      this.editingIndex = null
+    },
+    async deleteKeyPoint(index) {
+      const tourId = this.tour.id || this.$route.params.id
+      if (!confirm('Obrisati ovu tacku?')) return
+
+      try {
+        await tourService.deleteKeyPoint(tourId, index)
+        await this.fetchTour()
+        if (this.editingIndex === index) {
+          this.resetForm()
+        }
+      } catch (err) {
+        console.error("Greška pri brisanju ključne tačke:", err)
+        alert("Došlo je do greške prilikom brisanja.")
+      }
+    },
+    async fetchTour() {
+      const tourId = this.$route.params.id
+      const res = await tourService.getTourById(tourId)
+      this.tour = res.data
+      if (this.map) this.renderKeyPoints()
+    },
+    
   }
 }
 </script>
@@ -362,5 +486,38 @@ h3 {
 .btn-add:disabled {
   background: #cbd5e0;
   cursor: not-allowed;
+}
+
+.kp-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.btn-edit,
+.btn-delete,
+.btn-cancel {
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.btn-edit {
+  background: #e8f0fe;
+  color: #1a73e8;
+}
+
+.btn-delete {
+  background: #fdecea;
+  color: #d93025;
+}
+
+.btn-cancel {
+  margin-left: 10px;
+  background: #e2e8f0;
+  color: #4a5568;
 }
 </style>
