@@ -99,14 +99,6 @@ public class TourController {
 
             File destination = new File(uploadDir, fileName);
             image.transferTo(destination);
-                        /*/ MISLIM DA TREBA DA SE IZMENI SA OVIM OVIH PAR LINIJA IZNAD
-               Path uploadDir = Paths.get("uploads", "blogs");
-            Files.createDirectories(uploadDir);
-
-            Path destination = uploadDir.resolve(fileName);
-            image.transferTo(destination);
-
-             */
 
             keyPoint.setImage(fileName);
         } else {
