@@ -6,10 +6,14 @@ import com.tourism.tours.dto.ReviewDTO;
 import com.tourism.tours.model.Review;
 import com.tourism.tours.model.Tour;
 import com.tourism.tours.repository.TourRepository;
+import com.tourism.tours.dto.CreateKeyPointDTO;
+import com.tourism.tours.model.KeyPoint;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -104,5 +108,68 @@ public class TourService {
         tour.getReviews().add(review);
 
         return save(tour);
+    }
+    private Tour checkTourOwner(
+            String tourId,
+            Long userId,
+            String role,
+            int index
+    ){
+        Tour tour = getTourById(tourId);
+
+        if (!"GUIDE".equals(role) || userId == null || !userId.equals(tour.getAuthorId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only guide owner can update key points");
+        }
+
+        if (tour.getKeyPoints() == null || index < 0 || index >= tour.getKeyPoints().size()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Key point not found");
+        }
+        return tour;
+    }
+    public Tour updateKeyPoint(
+            String tourId,
+            int index,
+            CreateKeyPointDTO dto,
+            MultipartFile image,
+            Long userId,
+            String role
+    ) throws IOException {
+
+        Tour tour = checkTourOwner(tourId,userId,role,index);
+
+        KeyPoint keyPoint = tour.getKeyPoints().get(index);
+        keyPoint.setName(dto.getName());
+        keyPoint.setDescription(dto.getDescription());
+        keyPoint.setLatitude(dto.getLatitude());
+        keyPoint.setLongitude(dto.getLongitude());
+
+        if (image != null && !image.isEmpty()) {
+            String fileName = UUID.randomUUID() + "_" +
+                    StringUtils.cleanPath(image.getOriginalFilename());
+
+            File uploadDir = new File("uploads");
+            if (!uploadDir.exists()) {
+                uploadDir.mkdirs();
+            }
+
+            File destination = new File(uploadDir, fileName);
+            image.transferTo(destination);
+
+            keyPoint.setImage(fileName);
+        }
+
+        return save(tour);
+    }
+    public Tour deleteKeyPoint(
+            String tourId,
+            int index,
+            Long userId,
+            String role
+    ){
+        Tour tour = checkTourOwner(tourId,userId,role,index);
+
+        tour.getKeyPoints().remove(index);
+        return save(tour);
+
     }
 }
