@@ -85,16 +85,14 @@ services:
       - followers_neo4j_data:/data
       - followers_neo4j_logs:/logs
       - ./neo-init:/var/lib/neo4j/import
-    command: |
+    command: >
       bash -c "
       /startup/docker-entrypoint.sh neo4j &
-      echo 'Waiting for Neo4j to start...'
-      until wget --spider -q http://localhost:7474/ 2>&1; do sleep 1; done
-      echo 'Neo4j started. Running initialization script...'
-      cypher-shell -u neo4j -p turizamSifra -f /var/lib/neo4j/import/followers.cypher
-      echo 'Initialization complete.'
+      sleep 20 &&
+      cypher-shell -u neo4j -p turizamSifra -f /var/lib/neo4j/import/followers.cypher &&
       wait
       "
+
 
   mongodb_tours:
     image: mongo:latest
@@ -125,12 +123,11 @@ services:
     restart: always
 
   gateway:
-    image: nginx:latest
+    build:
+      context: ./gateway
     container_name: api-gateway
     ports:
       - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - blog
       - stakeholders
