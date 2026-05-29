@@ -138,9 +138,34 @@ services:
       - tours
     restart: always
 
+  purchase:
+    build:
+      context: ./backend/purchase
+    container_name: purchase-service
+    ports:
+      - 8084:8084
+    depends_on:
+      - db_purchase
+    environment:
+      JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
+      DB_URL: "host=db_purchase user=postgres password=turizamSifra dbname=purchase_db port=5432 sslmode=disable"
+
+  db_purchase:
+    image: postgres:latest
+    container_name: purchase-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: turizamSifra
+      POSTGRES_DB: purchase_db
+    ports:
+      - 5434:5432
+    volumes:
+      - purchase_postgres_data:/var/lib/postgresql
+
 volumes:
   blog_postgres_data:
   stakeholders_postgres_data:
   followers_neo4j_data:
   followers_neo4j_logs:
   tours_mongo_data:
+  purchase_postgres_data:
