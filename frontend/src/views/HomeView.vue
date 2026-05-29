@@ -12,6 +12,7 @@
       <div v-else class="user-status">
         <p>Currently active as: <strong>{{ user.username }}</strong></p>
         <router-link v-if="user.role === 'ADMIN'" to="/admin/users" class="btn-primary">Admin Panel</router-link>
+        <router-link v-if="user.role === 'TOURIST'" to="/tours" class="btn-primary">Explore Tours</router-link>
         <router-link v-else to="/blogs" class="btn-primary">Explore Blogs</router-link>
       </div>
     </div>
