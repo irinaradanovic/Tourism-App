@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import com.tourism.tours.model.TourStatus;
 
 @Service
 @RequiredArgsConstructor
@@ -171,5 +172,9 @@ public class TourService {
         tour.getKeyPoints().remove(index);
         return save(tour);
 
+    }
+
+    public List<Tour> getToursByStatus(TourStatus status) {
+        return tourRepository.findByStatus(status.name());
     }
 }

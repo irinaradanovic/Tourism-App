@@ -136,12 +136,14 @@ services:
       - stakeholders
       - followers
       - tours
+      - purchase
     restart: always
 
   purchase:
     build:
       context: ./backend/purchase
     container_name: purchase-service
+    restart: always
     ports:
       - 8084:8084
     depends_on:
@@ -149,6 +151,7 @@ services:
     environment:
       JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
       DB_URL: "host=db_purchase user=postgres password=turizamSifra dbname=purchase_db port=5432 sslmode=disable"
+      TOURS_SERVICE_URL: http://tours:8083/api/tours
 
   db_purchase:
     image: postgres:latest

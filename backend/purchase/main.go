@@ -5,7 +5,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"purchase/handler"
 	"purchase/model"
+	"purchase/repository"
+	"purchase/service"
 
 	"github.com/gorilla/mux"
 	"gorm.io/driver/postgres"
@@ -32,11 +35,20 @@ func main() {
 		log.Fatal("Failed to migrate database:", err)
 	}
 
+	repo := repository.NewPurchaseRepository(db)
+	serv := service.NewPurchaseService(repo)
+	hand := handler.NewPurchaseHandler(serv, jwtSecret)
+
 	r := mux.NewRouter()
+
 	r.HandleFunc("/api/purchase/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"status": "Purchase service healthy"}`))
 	}).Methods("GET")
+
+	r.HandleFunc("/api/purchase/cart", hand.GetCart).Methods("GET")
+	r.HandleFunc("/api/purchase/cart/items", hand.AddItem).Methods("POST")
+	r.HandleFunc("/api/purchase/cart/items/{id}", hand.RemoveItem).Methods("DELETE")
 
 	port := ":8084"
 	fmt.Printf("Purchase service listening on port %s...\n", port)
