@@ -77,7 +77,7 @@
     </div>
   </div>
   <div v-else class="loading-box">
-    <p>Učitavanje podataka o turi...</p>
+    <p>Fetching tour data...</p>
   </div>
 </template>
 
@@ -159,7 +159,7 @@ export default {
       const tourId = this.tour.id || this.$route.params.id
 
       if (!this.kp.latitude || !this.kp.longitude) {
-        alert("Molimo vas da prvo izaberete lokaciju na mapi klikom.")
+        alert("Please select a location on the map first.")
         return
       }
 
@@ -174,8 +174,8 @@ export default {
         await tourService.addKeyPoint(tourId, formData)
         location.reload()
       } catch (err) {
-        console.error("Greška pri slanju ključne tačke:", err)
-        alert("Došlo je do greške prilikom čuvanja na backendu.")
+        console.error("Error sending key point:", err)
+        alert("An error occurred while saving on the backend.")
       }
     },
     renderKeyPoints() {
@@ -239,7 +239,7 @@ export default {
     async updateKeyPoint() {
       const tourId = this.tour.id || this.$route.params.id
       if (!this.kp.latitude || !this.kp.longitude) {
-        alert("Molimo vas da prvo izaberete lokaciju na mapi klikom.")
+        alert("Please select a location on the map first.")
         return
       }
 
@@ -254,8 +254,8 @@ export default {
         await this.fetchTour()
         this.resetForm()
       } catch (err) {
-        console.error("Greška pri izmeni ključne tačke:", err)
-        alert("Došlo je do greške prilikom izmene.")
+        console.error("Error updating key point:", err)
+        alert("An error occurred while updating.")
       }
     },
     cancelEdit() {
@@ -268,7 +268,7 @@ export default {
     },
     async deleteKeyPoint(index) {
       const tourId = this.tour.id || this.$route.params.id
-      if (!confirm('Obrisati ovu tacku?')) return
+      if (!confirm('Delete this key point?')) return
 
       try {
         await tourService.deleteKeyPoint(tourId, index)
@@ -277,8 +277,8 @@ export default {
           this.resetForm()
         }
       } catch (err) {
-        console.error("Greška pri brisanju ključne tačke:", err)
-        alert("Došlo je do greške prilikom brisanja.")
+        console.error("Error deleting key point:", err)
+        alert("An error occurred while deleting.")
       }
     },
     async fetchTour() {
