@@ -4,6 +4,7 @@ import com.tourism.tours.dto.CreateKeyPointDTO;
 import com.tourism.tours.dto.CreateTourDTO;
 import com.tourism.tours.model.KeyPoint;
 import com.tourism.tours.model.Tour;
+import com.tourism.tours.model.TourStatus;
 import com.tourism.tours.config.JwtUtil;
 import com.tourism.tours.service.TourService;
 import com.tourism.tours.dto.ReviewDTO;
@@ -155,5 +156,11 @@ public class TourController {
 
         Tour deleted = tourService.deleteKeyPoint(tourId,index,userId,role);
         return ResponseEntity.ok(deleted);
+    }
+
+    // Tourists can only see published tours
+    @GetMapping("/published")
+    public ResponseEntity<List<Tour>> getPublishedTours() {
+        return ResponseEntity.ok(tourService.getToursByStatus(TourStatus.PUBLISHED));
     }
 }
