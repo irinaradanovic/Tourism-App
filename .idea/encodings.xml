@@ -3,5 +3,7 @@
   <component name="Encoding">
     <file url="file://$PROJECT_DIR$/backend/stakeholders/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/tours/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/tours/target/generated-sources/protobuf/grpc-java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/tours/target/generated-sources/protobuf/java" charset="UTF-8" />
   </component>
 </project>

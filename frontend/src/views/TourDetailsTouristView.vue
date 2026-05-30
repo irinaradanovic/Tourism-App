@@ -64,6 +64,9 @@
 
           <div class="status-box" v-if="isPurchased">
             <span class="badge-purchased">Purchased</span>
+            <button @click="handleStartTour" class="btn-start">
+              ▶ Start Tour
+            </button>
           </div>
           <div class="action-box" v-else>
             <button v-if="isInCart(tour.id)" @click="handleRemoveFromCart(tour.id)" class="btn-remove">
@@ -81,6 +84,10 @@
 
 <script>
 import { tourPublicService, purchaseService } from '@/services/purchaseService';
+import axios from 'axios';
+
+const API = 'http://localhost:80';
+const getAuthHeader = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
 
 export default {
   name: 'TourDetailsTouristView',
@@ -88,7 +95,7 @@ export default {
     return {
       tour: null,
       cart: { items: [] },
-      isPurchased: false // Za sada simulacija dok ne uvežemo tokene
+      isPurchased: false
     }
   },
   async created() {
@@ -116,10 +123,11 @@ export default {
     },
     async checkIfPurchased(tourId) {
       try {
-        // TODO: Ovde će ići poziv ka purchase mikroservisu da proveri postojanje TourPurchaseToken-a
-        this.isPurchased = false;
+        const res = await axios.get(`${API}/api/purchase/check/${tourId}`, { headers: getAuthHeader() });
+        this.isPurchased = res.data.purchased;
       } catch (err) {
         console.error("Error checking purchase status:", err);
+        this.isPurchased = false;
       }
     },
     isInCart(tourId) {
@@ -151,6 +159,31 @@ export default {
         }
       } catch (err) {
         console.error("Error removing item from cart:", err);
+      }
+    },
+    async handleStartTour() {
+      try {
+        // Simulator integracija: prvo uzmi poziciju turiste
+        const posRes = await axios.get(`${API}/api/position`, { headers: getAuthHeader() });
+        const { lat, lon } = posRes.data;
+
+        // SAGA: pozovi startTour koji interno proverava da li je tura kupljena
+        const res = await axios.post(
+          `${API}/api/executions/start/${this.tour.id}`,
+          { lat, lon },
+          { headers: getAuthHeader() }
+        );
+
+        const execution = res.data;
+        this.$router.push(`/active-tour/${execution.id}`);
+      } catch (err) {
+        if (err.response?.status === 403) {
+          alert('You must purchase this tour before starting it.');
+        } else if (err.response?.status === 404) {
+          alert('Position not found. Please set your position in the simulator first.');
+        } else {
+          alert('Failed to start tour: ' + (err.response?.data || err.message));
+        }
       }
     }
   }
@@ -282,7 +315,7 @@ export default {
   color: #2c3e50;
 }
 
-.btn-add, .btn-remove {
+.btn-add, .btn-remove, .btn-start {
   width: 100%;
   padding: 12px;
   border-radius: 6px;
@@ -296,6 +329,8 @@ export default {
 .btn-add:hover { background: #218838; }
 .btn-remove { background: #dc3545; color: white; }
 .btn-remove:hover { background: #c82333; }
+.btn-start { background: #007bff; color: white; margin-top: 10px; }
+.btn-start:hover { background: #0069d9; }
 
 .badge-purchased {
   background: #28a745;
