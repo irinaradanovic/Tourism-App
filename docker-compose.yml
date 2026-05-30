@@ -108,6 +108,7 @@ services:
     container_name: tours-service
     ports:
       - 8083:8083
+      - 9083:9083  # gRPC
     depends_on:
       - mongodb_tours
     environment:
@@ -152,6 +153,7 @@ services:
       JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
       DB_URL: "host=db_purchase user=postgres password=turizamSifra dbname=purchase_db port=5432 sslmode=disable"
       TOURS_SERVICE_URL: http://tours:8083/api/tours
+      TOURS_GRPC_URL: "tours:9083"
 
   db_purchase:
     image: postgres:latest

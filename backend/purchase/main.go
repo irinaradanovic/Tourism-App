@@ -73,8 +73,22 @@ func main() {
 		log.Fatal("Failed to migrate database:", err)
 	}
 
+	// connect to Tours gRPC server
+	toursGrpcAddr := os.Getenv("TOURS_GRPC_URL")
+	if toursGrpcAddr == "" {
+		toursGrpcAddr = "localhost:9083" // default
+	}
+
+	conn, err := grpc.Dial(toursGrpcAddr, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("Failed to connect to Tours gRPC server: %v", err)
+	}
+	defer conn.Close()
+
+	toursClient := pb.NewTourCheckServiceClient(conn)
+
 	repo := repository.NewPurchaseRepository(db)
-	serv := service.NewPurchaseService(repo)
+	serv := service.NewPurchaseService(repo, toursClient)
 	hand := handler.NewPurchaseHandler(serv, jwtSecret)
 
 	// gRPC server

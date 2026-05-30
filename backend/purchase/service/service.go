@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"purchase/model"
+	"purchase/pb"
 	"purchase/repository"
 	"time"
 
@@ -15,13 +16,25 @@ import (
 )
 
 type PurchaseService struct {
-	repo repository.IPurchaseRepository
+	repo        repository.IPurchaseRepository
+	toursClient pb.TourCheckServiceClient
 }
 
-func NewPurchaseService(repo repository.IPurchaseRepository) *PurchaseService {
+func NewPurchaseService(repo repository.IPurchaseRepository, toursClient pb.TourCheckServiceClient) *PurchaseService {
 	return &PurchaseService{
-		repo: repo,
+		repo:        repo,
+		toursClient: toursClient,
 	}
+}
+
+func (s *PurchaseService) ValidateTourViaGrpc(ctx context.Context, tourID string) (string, string, float64, error) {
+	// call the gRPC method to check the tour status and get its name and price
+	resp, err := s.toursClient.CheckTour(ctx, &pb.TourCheckRequest{TourId: tourID})
+	if err != nil {
+		return "", "", 0, fmt.Errorf("error communicating with Tours gRPC service: %v", err)
+	}
+
+	return resp.Status, resp.TourName, resp.Price, nil
 }
 
 type TourServiceClientResponse struct {
@@ -75,8 +88,7 @@ func (s *PurchaseService) GetOrCreateCart(ctx context.Context, touristID int64) 
 }
 
 func (s *PurchaseService) AddItemToCart(ctx context.Context, touristID int64, tourID string, tourName string, price float64) (*model.OrderItem, error) {
-
-	status, err := s.CheckTourStatusFromToursService(tourID)
+	status, realName, realPrice, err := s.ValidateTourViaGrpc(ctx, tourID)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +105,8 @@ func (s *PurchaseService) AddItemToCart(ctx context.Context, touristID int64, to
 	item := &model.OrderItem{
 		ShoppingCartID: cart.ID,
 		TourID:         tourID,
-		TourName:       tourName,
-		Price:          price,
+		TourName:       realName,
+		Price:          realPrice,
 	}
 
 	if err := s.repo.CreateItem(ctx, item); err != nil {
@@ -102,13 +114,14 @@ func (s *PurchaseService) AddItemToCart(ctx context.Context, touristID int64, to
 	}
 
 	// Update total price of the cart
-	cart.TotalPrice += price
+	cart.TotalPrice += realPrice
 	cart.UpdatedAt = time.Now()
 	if err := s.repo.SaveCart(ctx, cart); err != nil {
 		return nil, err
 	}
 
 	return item, nil
+
 }
 
 func (s *PurchaseService) RemoveItemFromCart(ctx context.Context, touristID int64, itemID uint) error {
