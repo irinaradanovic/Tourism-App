@@ -6,12 +6,15 @@ import com.tourism.tours.model.Tour;
 import com.tourism.tours.model.TourExecution;
 import com.tourism.tours.repository.TourExecutionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +22,10 @@ public class TourExecutionService {
 
     private final TourExecutionRepository executionRepository;
     private final TourService tourService;
+    private final RestTemplate restTemplate;
+
+    @Value("${purchase.service.url:http://purchase:8084}")
+    private String purchaseServiceUrl;
 
     public TourExecution startTour(String tourId, Long touristId, StartTourDTO dto) {
         Tour tour = tourService.getTourById(tourId);
@@ -27,6 +34,13 @@ public class TourExecutionService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tour must be published or archived to start");
         }
 
+        // SAGA korak 1: proveri kod Purchase servisa da li je turista kupio turu
+        boolean purchased = checkTourPurchased(touristId, tourId);
+        if (!purchased) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You must purchase this tour before starting it");
+        }
+
+        // SAGA korak 2: kreiraj sesiju (ako prethodni korak pukne, sesija se ne kreira - automatski rollback)
         TourExecution execution = new TourExecution();
         execution.setTourId(tourId);
         execution.setTouristId(touristId);
@@ -37,6 +51,17 @@ public class TourExecutionService {
         execution.setLastActivity(LocalDateTime.now());
 
         return executionRepository.save(execution);
+    }
+
+    private boolean checkTourPurchased(Long touristId, String tourId) {
+        try {
+            String url = purchaseServiceUrl + "/api/purchase/check/" + tourId + "?touristId=" + touristId;
+            Map response = restTemplate.getForObject(url, Map.class);
+            if (response == null) return false;
+            return Boolean.TRUE.equals(response.get("purchased"));
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public TourExecution abandonTour(String executionId, Long touristId) {
@@ -86,10 +111,8 @@ public class TourExecutionService {
             if (execution.getCompletedKeyPoints().containsKey(i)) {
                 continue;
             }
-
             KeyPoint kp = keyPoints.get(i);
             double distance = calculateDistance(lat, lon, kp.getLatitude(), kp.getLongitude());
-
             if (distance <= 0.2) {
                 execution.getCompletedKeyPoints().put(i, LocalDateTime.now());
             }

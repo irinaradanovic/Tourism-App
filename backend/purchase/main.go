@@ -115,6 +115,7 @@ func main() {
 	r.HandleFunc("/api/purchase/cart", hand.GetCart).Methods("GET")
 	r.HandleFunc("/api/purchase/cart/items", hand.AddItem).Methods("POST")
 	r.HandleFunc("/api/purchase/cart/items/{id}", hand.RemoveItem).Methods("DELETE")
+	r.HandleFunc("/api/purchase/check/{tourId}", hand.CheckPurchase).Methods("GET")
 
 	port := ":8084"
 	fmt.Printf("Purchase service listening on port %s...\n", port)

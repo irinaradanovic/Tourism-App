@@ -9,12 +9,13 @@ import BlogDetailsView from '../views/BlogDetailsView.vue'
 import MyProfileView from '../views/MyProfileView.vue'
 import UserProfileView from '../views/UserProfileView.vue'
 import PositionSimulatorView from '../views/PositionSimulatorView.vue'
-import CreateTourView from "@/views/CreateTourView.vue";
-import MyToursView from "@/views/MyToursView.vue";
-import TourDetailsView from "@/views/TourDetailsView.vue";
-import TourExploreView from "@/views/TourExploreView.vue";
-import CartView from "@/views/CartView.vue";
-import TourDetailsTouristView from "@/views/TourDetailsTouristView.vue";
+import CreateTourView from "@/views/CreateTourView.vue"
+import MyToursView from "@/views/MyToursView.vue"
+import TourDetailsView from "@/views/TourDetailsView.vue"
+import TourExploreView from "@/views/TourExploreView.vue"
+import CartView from "@/views/CartView.vue"
+import TourDetailsTouristView from "@/views/TourDetailsTouristView.vue"
+import ActiveTourView from '@/views/ActiveTourView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -98,6 +99,11 @@ const router = createRouter({
       path: '/tours-tourist/:id',
       name: 'tourDetailsTourist',
       component: TourDetailsTouristView
+    },
+    {
+      path: '/active-tour/:executionId',
+      name: 'activeTour',
+      component: ActiveTourView
     }
 
   ]
