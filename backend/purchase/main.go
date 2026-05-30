@@ -1,19 +1,57 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"purchase/handler"
 	"purchase/model"
+	"purchase/pb"
 	"purchase/repository"
 	"purchase/service"
 
 	"github.com/gorilla/mux"
+	"google.golang.org/grpc"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
+
+// gRPC server struct
+type grpcCartServer struct {
+	pb.UnimplementedCartServiceServer
+	service *service.PurchaseService
+}
+
+func (s *grpcCartServer) GetCart(ctx context.Context, req *pb.CartRequest) (*pb.CartResponse, error) {
+	log.Printf("[gRPC Server] Getting cart for tourist: %d", req.TouristId)
+	cart, err := s.service.GetOrCreateCart(ctx, req.TouristId)
+	if err != nil {
+		return nil, err
+	}
+
+	var items []*pb.OrderItemProto
+	for _, item := range cart.Items {
+		items = append(items, &pb.OrderItemProto{
+			Id:             uint32(item.ID),
+			ShoppingCartId: uint32(item.ShoppingCartID),
+			TourId:         item.TourID,
+			TourName:       item.TourName,
+			Price:          item.Price,
+		})
+	}
+
+	return &pb.CartResponse{
+		Id:         uint32(cart.ID),
+		TouristId:  cart.TouristID,
+		TotalPrice: cart.TotalPrice,
+		Items:      items,
+		CreatedAt:  cart.CreatedAt.String(),
+		UpdatedAt:  cart.UpdatedAt.String(),
+	}, nil
+}
 
 func main() {
 
@@ -38,6 +76,20 @@ func main() {
 	repo := repository.NewPurchaseRepository(db)
 	serv := service.NewPurchaseService(repo)
 	hand := handler.NewPurchaseHandler(serv, jwtSecret)
+
+	// gRPC server
+	go func() {
+		lis, err := net.Listen("tcp", ":9084")
+		if err != nil {
+			log.Fatalf("gRPC listen failed: %v", err)
+		}
+		grpcServer := grpc.NewServer()
+		pb.RegisterCartServiceServer(grpcServer, &grpcCartServer{service: serv})
+		log.Println("gRPC server listening on :9084")
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Fatalf("gRPC serve failed: %v", err)
+		}
+	}()
 
 	r := mux.NewRouter()
 

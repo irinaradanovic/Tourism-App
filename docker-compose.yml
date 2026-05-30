@@ -135,6 +135,8 @@ services:
       - tours
       - purchase
     restart: always
+    environment:
+      JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
 
   purchase:
     build:
@@ -143,6 +145,7 @@ services:
     restart: always
     ports:
       - 8084:8084
+      - 9084:9084  # gRPC
     depends_on:
       - db_purchase
     environment:
