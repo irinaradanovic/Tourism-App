@@ -132,3 +132,61 @@ func (s *PurchaseService) RemoveItemFromCart(ctx context.Context, touristID int6
 func (s *PurchaseService) HasPurchasedTour(touristID int64, tourID string) (bool, error) {
 	return s.repo.HasToken(touristID, tourID)
 }
+
+func (s *PurchaseService) CheckoutCart(ctx context.Context, touristID int64) ([]model.TourPurchaseToken, error) {
+	cart, err := s.repo.GetCartByTouristId(touristID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(cart.Items) == 0 {
+		return []model.TourPurchaseToken{}, nil
+	}
+
+	var createdTokens []model.TourPurchaseToken
+
+	for _, item := range cart.Items {
+		alreadyPurchased, err := s.repo.HasToken(touristID, item.TourID)
+		if err != nil {
+			return nil, err
+		}
+		if alreadyPurchased {
+			continue
+		}
+
+		status, _, _, err := s.ValidateTourViaGrpc(ctx, item.TourID)
+		if err != nil {
+			return nil, err
+		}
+		if status == "ARCHIVED" {
+			return nil, fmt.Errorf("tour %s is archived and cannot be purchased", item.TourID)
+		}
+
+		token := model.TourPurchaseToken{
+			TouristID: touristID,
+			TourID:    item.TourID,
+			TourName:  item.TourName,
+			CreatedAt: time.Now(),
+		}
+
+		if err := s.repo.CreateToken(ctx, &token); err != nil {
+			return nil, err
+		}
+
+		createdTokens = append(createdTokens, token)
+	}
+
+	if err := s.repo.ClearCartItems(ctx, cart.ID); err != nil {
+		return nil, err
+	}
+
+	cart.Items = []model.OrderItem{}
+	cart.TotalPrice = 0
+	cart.UpdatedAt = time.Now()
+
+	if err := s.repo.SaveCart(ctx, cart); err != nil {
+		return nil, err
+	}
+
+	return createdTokens, nil
+}

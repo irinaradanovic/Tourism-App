@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import com.tourism.tours.model.TourStatus;
@@ -40,6 +41,7 @@ public class TourService {
         tour.setTitle(dto.getTitle());
         tour.setDescription(dto.getDescription());
         tour.setDifficulty(dto.getDifficulty());
+        tour.setStatus(TourStatus.PUBLISHED);
         tour.setTags(dto.getTags());
 
         return tourRepository.save(tour);
@@ -177,4 +179,24 @@ public class TourService {
     public List<Tour> getToursByStatus(TourStatus status) {
         return tourRepository.findByStatus(status.name());
     }
+
+    public Tour getTourPreview(String id) {
+    Tour tour = getTourById(id);
+
+    if (tour.getKeyPoints() == null || tour.getKeyPoints().isEmpty()) {
+        tour.setKeyPoints(new ArrayList<>());
+        return tour;
+    }
+
+    KeyPoint first = tour.getKeyPoints().get(0);
+    KeyPoint preview = new KeyPoint();
+    preview.setName(first.getName());
+    preview.setImage(first.getImage());
+    preview.setDescription("Unlock the full route after purchase");
+    preview.setLatitude(first.getLatitude());
+    preview.setLongitude(first.getLongitude());
+
+    tour.setKeyPoints(Collections.singletonList(preview));
+    return tour;
+}
 }

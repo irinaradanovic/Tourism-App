@@ -68,7 +68,7 @@ func main() {
 		jwtSecret = "z2S4p9X8v6w3y1z5A7b9C0d2E4f6G8h0" // default
 	}
 
-	err = db.AutoMigrate(&model.ShoppingCart{}, &model.OrderItem{})
+	err = db.AutoMigrate(&model.ShoppingCart{}, &model.OrderItem{}, &model.TourPurchaseToken{})
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
@@ -116,6 +116,7 @@ func main() {
 	r.HandleFunc("/api/purchase/cart/items", hand.AddItem).Methods("POST")
 	r.HandleFunc("/api/purchase/cart/items/{id}", hand.RemoveItem).Methods("DELETE")
 	r.HandleFunc("/api/purchase/check/{tourId}", hand.CheckPurchase).Methods("GET")
+	r.HandleFunc("/api/purchase/checkout", hand.Checkout).Methods("POST")
 
 	port := ":8084"
 	fmt.Printf("Purchase service listening on port %s...\n", port)

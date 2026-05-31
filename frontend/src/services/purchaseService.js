@@ -24,6 +24,12 @@ export const purchaseService = {
   },
   removeItemFromCart(itemId) {
     return axios.delete(`${API_URL}/cart/items/${itemId}`, { headers: getAuthHeader() });
+  },
+  checkoutCart() {
+  return axios.post(`${API_URL}/checkout`, {}, { headers: getAuthHeader() });
+},
+  checkPurchase(tourId, touristId) {
+    return axios.get(`${API_URL}/check/${tourId}?touristId=${touristId}`, { headers: getAuthHeader()});
   }
 };
 

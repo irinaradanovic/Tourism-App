@@ -148,3 +148,29 @@ func (h *PurchaseHandler) CheckPurchase(w http.ResponseWriter, r *http.Request) 
 
 	json.NewEncoder(w).Encode(map[string]bool{"purchased": has})
 }
+
+func (h *PurchaseHandler) Checkout(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	userIdStr, role, err := h.GetUserIdFromToken(w, r)
+	if err != nil {
+		return
+	}
+	if role != "TOURIST" {
+		http.Error(w, "Only tourists can checkout", http.StatusForbidden)
+		return
+	}
+
+	userId, _ := strconv.ParseInt(userIdStr, 10, 64)
+
+	tokens, err := h.service.CheckoutCart(r.Context(), userId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]any{
+		"message": "Checkout completed",
+		"tokens":  tokens,
+	})
+}

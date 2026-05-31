@@ -11,11 +11,14 @@ import com.tourism.tours.dto.ReviewDTO;
 import com.tourism.tours.model.Review;
 import com.tourism.tours.dto.AddReviewDTO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
+import java.util.Map;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,6 +35,9 @@ public class TourController {
 
     private final TourService tourService;
     private final JwtUtil jwtUtil;
+    private final RestTemplate restTemplate;
+    @Value("${purchase.service.url:http://purchase:8084}")
+    private String purchaseServiceUrl;
 
     @PostMapping
     public ResponseEntity<Tour> createTour(
@@ -61,11 +67,51 @@ public class TourController {
                 tourService.getMyTours(userId)
         );
     }
-
+/*/ TREBA DA SE PROVEIR DA LI JE KUPIO TURISTA RUTU I AKO JESTE DA SE PRIKAZE FULL AKO NIJE SAMO DA SE PRIKAZE PREVIEW
     @GetMapping("/{id}")
     public ResponseEntity<Tour> getTourById(@PathVariable String id) {
                 System.out.println("GETTOUR hit");
         return ResponseEntity.ok(tourService.getTourById(id));
+    }
+    */
+    @GetMapping("/{id}")
+    public ResponseEntity<Tour> getTourById(
+            @PathVariable String id,
+            @RequestHeader(value = "Authorization", required = false) String authHeader
+    ) {
+        String role = null;
+        Long userId = null;
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                String token = authHeader.substring(7);
+                role = jwtUtil.extractRole(token);
+                userId = jwtUtil.extractUserId(token);
+            } catch (Exception ignored) {}
+        }
+
+        if ("GUIDE".equals(role) || "ADMIN".equals(role)) {
+            return ResponseEntity.ok(tourService.getTourById(id));
+        }
+
+        if ("TOURIST".equals(role) && userId != null) {
+            boolean purchased = false;
+            try {
+                String url = purchaseServiceUrl + "/api/purchase/check/" + id + "?touristId=" + userId;
+                Map response = restTemplate.getForObject(url, Map.class);
+                if (response != null && Boolean.TRUE.equals(response.get("purchased"))) {
+                    purchased = true;
+                }
+            } catch (Exception ignored) {
+                purchased = false;
+            }
+            if (purchased) {
+                return ResponseEntity.ok(tourService.getTourById(id));
+            }
+        }
+
+        // Default: preview for anonymous users or non-purchased tourists
+        return ResponseEntity.ok(tourService.getTourPreview(id));
     }
 
     @PostMapping("/{tourId}/key-points")
@@ -157,10 +203,54 @@ public class TourController {
         Tour deleted = tourService.deleteKeyPoint(tourId,index,userId,role);
         return ResponseEntity.ok(deleted);
     }
-
+    /*/ MORA DA SE PROMENI KAKO BI VRATILO SAMO PREVIEW ZA USERE KOJI NISU KUPILI TURU
     // Tourists can only see published tours
     @GetMapping("/published")
     public ResponseEntity<List<Tour>> getPublishedTours() {
         return ResponseEntity.ok(tourService.getToursByStatus(TourStatus.PUBLISHED));
+    }
+*/
+     @GetMapping("/published")
+    public ResponseEntity<List<Tour>> getPublishedTours(
+            @RequestHeader(value = "Authorization", required = false) String authHeader
+    ) {
+        String role = null;
+        Long userId = null;
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                String token = authHeader.substring(7);
+                role = jwtUtil.extractRole(token);
+                userId = jwtUtil.extractUserId(token);
+            } catch (Exception ignored) {}
+        }
+
+        List<Tour> tours = tourService.getToursByStatus(TourStatus.PUBLISHED);
+
+        if ("GUIDE".equals(role) || "ADMIN".equals(role) || userId == null) {
+            return ResponseEntity.ok(tours);
+        }
+
+        List<Tour> result = new ArrayList<>();
+        for (Tour t : tours) {
+            boolean purchased = false;
+            try {
+                String url = purchaseServiceUrl + "/api/purchase/check/" + t.getId() + "?touristId=" + userId;
+                Map resp = restTemplate.getForObject(url, Map.class);
+                if (resp != null && Boolean.TRUE.equals(resp.get("purchased"))) {
+                    purchased = true;
+                }
+            } catch (Exception ignored) {
+                purchased = false;
+            }
+
+            if (purchased) {
+                result.add(tourService.getTourById(t.getId()));
+            } else {
+                result.add(tourService.getTourPreview(t.getId()));
+            }
+        }
+
+        return ResponseEntity.ok(result);
     }
 }

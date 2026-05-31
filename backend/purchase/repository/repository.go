@@ -15,6 +15,8 @@ type IPurchaseRepository interface {
 	GetItemById(ctx context.Context, itemID uint) (*model.OrderItem, error)
 	DeleteItem(ctx context.Context, item *model.OrderItem) error
 	HasToken(touristID int64, tourID string) (bool, error)
+	CreateToken(ctx context.Context, token *model.TourPurchaseToken) error
+	ClearCartItems(ctx context.Context, cartID uint) error
 }
 
 type PurchaseRepository struct {
@@ -65,4 +67,12 @@ func (r *PurchaseRepository) HasToken(touristID int64, tourID string) (bool, err
 		Where("tourist_id = ? AND tour_id = ?", touristID, tourID).
 		Count(&count).Error
 	return count > 0, err
+}
+
+func (r *PurchaseRepository) CreateToken(ctx context.Context, token *model.TourPurchaseToken) error {
+	return r.db.WithContext(ctx).Create(token).Error
+}
+
+func (r *PurchaseRepository) ClearCartItems(ctx context.Context, cartID uint) error {
+	return r.db.WithContext(ctx).Where("shopping_cart_id= ?", cartID).Delete(&model.OrderItem{}).Error
 }
