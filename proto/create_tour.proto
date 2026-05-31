@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package tours;
+
+option java_multiple_files = true;
+option java_package = "com.tourism.tours.grpc";
+option go_package = "./pb";
+
+service TourCommandService {
+  rpc CreateTour (CreateTourRequest) returns (CreateTourResponse);
+}
+
+enum Difficulty {
+  DIFFICULTY_UNSPECIFIED = 0;
+  EASY = 1;
+  MEDIUM = 2;
+  HARD = 3;
+}
+
+message CreateTourRequest {
+  string title = 1;
+  string description = 2;
+  Difficulty difficulty = 3;
+  repeated string tags = 4;
+  int64 author_id = 5;
+}
+
+message Tour {
+  string id = 1;
+  int64 author_id = 2;
+  string title = 3;
+  string description = 4;
+  Difficulty difficulty = 5;
+  repeated string tags = 6;
+  double price = 7;
+  string status = 8;
+}
+
+message CreateTourResponse {
+  Tour tour = 1;
+}

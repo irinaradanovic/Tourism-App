@@ -51,6 +51,30 @@ func (s *grpcCartServer) GetCart(ctx context.Context, req *pb.CartRequest) (*pb.
 		CreatedAt:  cart.CreatedAt.String(),
 		UpdatedAt:  cart.UpdatedAt.String(),
 	}, nil
+
+}
+
+type grpcCheckoutServer struct {
+	pb.UnimplementedCheckoutServiceServer
+	service *service.PurchaseService
+}
+
+func (s *grpcCheckoutServer) Checkout(ctx context.Context, req *pb.CheckoutRequest) (*pb.CheckoutResponse, error) {
+	tokens, err := s.service.CheckoutCart(ctx, req.TouristId)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*pb.PurchaseToken, 0, len(tokens))
+	for _, t := range tokens {
+		out = append(out, &pb.PurchaseToken{
+			Id:        uint32(t.ID),
+			TouristId: t.TouristID,
+			TourId:    t.TourID,
+			TourName:  t.TourName,
+			CreatedAt: t.CreatedAt.String(),
+		})
+	}
+	return &pb.CheckoutResponse{Message: "Checkout completed", Tokens: out}, nil
 }
 
 func main() {
@@ -99,6 +123,7 @@ func main() {
 		}
 		grpcServer := grpc.NewServer()
 		pb.RegisterCartServiceServer(grpcServer, &grpcCartServer{service: serv})
+		pb.RegisterCheckoutServiceServer(grpcServer, &grpcCheckoutServer{service: serv})
 		log.Println("gRPC server listening on :9084")
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("gRPC serve failed: %v", err)
