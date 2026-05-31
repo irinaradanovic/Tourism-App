@@ -119,18 +119,18 @@ public class TourExecutionService {
             }
             KeyPoint kp = keyPoints.get(i);
             double distance = calculateDistance(lat, lon, kp.getLatitude(), kp.getLongitude());
-            if (distance <= 0.2) {
+            if (distance <= 0.05) {
                 execution.getCompletedKeyPoints().put(i, LocalDateTime.now());
             }
         }
-        /*/
+
         if (tour.getKeyPoints() != null && !tour.getKeyPoints().isEmpty() 
                 && execution.getCompletedKeyPoints().size() == tour.getKeyPoints().size()
                 && !"COMPLETED".equals(execution.getStatus())) {
             execution.setStatus("COMPLETED");
             execution.setFinishedAt(LocalDateTime.now());
         }
-*/
+
         return executionRepository.save(execution);
     }
 
