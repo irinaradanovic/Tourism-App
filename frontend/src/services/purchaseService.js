@@ -24,7 +24,10 @@ export const purchaseService = {
   },
   removeItemFromCart(itemId) {
     return axios.delete(`${API_URL}/cart/items/${itemId}`, { headers: getAuthHeader() });
-  }
+  },
+  checkoutCart() {
+  return axios.post(`${API_URL}/checkout`, {}, { headers: getAuthHeader() });
+}
 };
 
 export const tourPublicService = {

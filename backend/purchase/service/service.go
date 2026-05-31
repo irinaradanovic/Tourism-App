@@ -146,14 +146,19 @@ func (s *PurchaseService) CheckoutCart(ctx context.Context, touristID int64) ([]
 	var createdTokens []model.TourPurchaseToken
 
 	for _, item := range cart.Items {
+		alreadyPurchased, err := s.repo.HasToken(touristID, item.TourID)
+		if err != nil {
+			return nil, err
+		}
+		if alreadyPurchased {
+			continue
+		}
+
 		status, _, _, err := s.ValidateTourViaGrpc(ctx, item.TourID)
 		if err != nil {
 			return nil, err
 		}
 		if status == "ARCHIVED" {
-			if err := s.repo.DeleteItem(ctx, &item); err != nil {
-				return nil, err
-			}
 			return nil, fmt.Errorf("tour %s is archived and cannot be purchased", item.TourID)
 		}
 
@@ -175,6 +180,7 @@ func (s *PurchaseService) CheckoutCart(ctx context.Context, touristID int64) ([]
 		return nil, err
 	}
 
+	cart.Items = []model.OrderItem{}
 	cart.TotalPrice = 0
 	cart.UpdatedAt = time.Now()
 

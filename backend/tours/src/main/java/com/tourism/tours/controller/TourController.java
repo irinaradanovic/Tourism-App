@@ -203,10 +203,54 @@ public class TourController {
         Tour deleted = tourService.deleteKeyPoint(tourId,index,userId,role);
         return ResponseEntity.ok(deleted);
     }
-
+    /*/ MORA DA SE PROMENI KAKO BI VRATILO SAMO PREVIEW ZA USERE KOJI NISU KUPILI TURU
     // Tourists can only see published tours
     @GetMapping("/published")
     public ResponseEntity<List<Tour>> getPublishedTours() {
         return ResponseEntity.ok(tourService.getToursByStatus(TourStatus.PUBLISHED));
+    }
+*/
+     @GetMapping("/published")
+    public ResponseEntity<List<Tour>> getPublishedTours(
+            @RequestHeader(value = "Authorization", required = false) String authHeader
+    ) {
+        String role = null;
+        Long userId = null;
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                String token = authHeader.substring(7);
+                role = jwtUtil.extractRole(token);
+                userId = jwtUtil.extractUserId(token);
+            } catch (Exception ignored) {}
+        }
+
+        List<Tour> tours = tourService.getToursByStatus(TourStatus.PUBLISHED);
+
+        if ("GUIDE".equals(role) || "ADMIN".equals(role) || userId == null) {
+            return ResponseEntity.ok(tours);
+        }
+
+        List<Tour> result = new ArrayList<>();
+        for (Tour t : tours) {
+            boolean purchased = false;
+            try {
+                String url = purchaseServiceUrl + "/api/purchase/check/" + t.getId() + "?touristId=" + userId;
+                Map resp = restTemplate.getForObject(url, Map.class);
+                if (resp != null && Boolean.TRUE.equals(resp.get("purchased"))) {
+                    purchased = true;
+                }
+            } catch (Exception ignored) {
+                purchased = false;
+            }
+
+            if (purchased) {
+                result.add(tourService.getTourById(t.getId()));
+            } else {
+                result.add(tourService.getTourPreview(t.getId()));
+            }
+        }
+
+        return ResponseEntity.ok(result);
     }
 }

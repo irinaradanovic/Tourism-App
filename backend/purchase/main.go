@@ -68,7 +68,7 @@ func main() {
 		jwtSecret = "z2S4p9X8v6w3y1z5A7b9C0d2E4f6G8h0" // default
 	}
 
-	err = db.AutoMigrate(&model.ShoppingCart{}, &model.OrderItem{})
+	err = db.AutoMigrate(&model.ShoppingCart{}, &model.OrderItem{}, &model.TourPurchaseToken{})
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}

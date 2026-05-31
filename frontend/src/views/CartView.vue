@@ -80,9 +80,17 @@ export default {
         console.error("Error removing item:", err);
       }
     },
-    handleCheckout() {
-      // SAGA/CHECKOUT - JUST A SIMULATION ALERT FOR NOW !!
-      alert("purchase completed successfully! (This is a simulation, no actual purchase logic implemented yet)");
+    async handleCheckout() {
+      try {
+        const res = await purchaseService.checkoutCart();
+        alert(`Checkout completed. Created ${res.data.tokens.length} purchase token(s).`);
+        this.cart = { items: [], total_price: 0 };
+        window.dispatchEvent(new CustomEvent('cart-updated'));
+        await this.fetchCart();
+      } catch (err) {
+        console.error("Checkout failed:", err);
+        alert(err.response?.data || "Checkout failed");
+      }
     }
   }
 }

@@ -41,6 +41,7 @@ public class TourService {
         tour.setTitle(dto.getTitle());
         tour.setDescription(dto.getDescription());
         tour.setDifficulty(dto.getDifficulty());
+        tour.setStatus(TourStatus.PUBLISHED);
         tour.setTags(dto.getTags());
 
         return tourRepository.save(tour);
