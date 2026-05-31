@@ -128,7 +128,9 @@ func main() {
 			serveReverseProxy(blogURL, w, r)
 		} else if strings.HasPrefix(path, "/api/followers") {
 			serveReverseProxy(followersURL, w, r)
-		} else if strings.HasPrefix(path, "/api/tours") || strings.HasPrefix(path, "/api/position") {
+		} else if strings.HasPrefix(path, "/api/tours") ||
+			strings.HasPrefix(path, "/api/position") ||
+			strings.HasPrefix(path, "/api/executions") {
 			serveReverseProxy(toursURL, w, r)
 		} else if strings.HasPrefix(path, "/api/purchase") {
 			serveReverseProxy(purchaseURL, w, r)
