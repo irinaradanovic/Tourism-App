@@ -18,8 +18,15 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var cartClient      pb.CartServiceClient
+var cartClient pb.CartServiceClient
 var proximityClient pb.ProximityServiceClient
+var checkoutClient pb.CheckoutServiceClient
+
+func setCORSHeaders(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+}
 
 func initGrpcClients() {
 	connPurchase, err := grpc.NewClient("purchase:9084", grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -35,6 +42,15 @@ func initGrpcClients() {
 	}
 	proximityClient = pb.NewProximityServiceClient(connTours)
 	log.Println("gRPC client connected to tours:9083")
+}
+
+func initCheckoutClient() {
+	conn, err := grpc.Dial("purchase:9084", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("Failed to connect to purchase gRPC: %v", err)
+	}
+	checkoutClient = pb.NewCheckoutServiceClient(conn)
+	log.Println("gRPC client connected to purchase:9084 (checkout)")
 }
 
 func getTouristIdFromToken(r *http.Request, secret string) (int64, error) {
@@ -84,6 +100,31 @@ func handleGetCartGrpc(w http.ResponseWriter, r *http.Request, jwtSecret string)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(cart)
+}
+func handleCheckoutGrpc(w http.ResponseWriter, r *http.Request, jwtSecret string) {
+	setCORSHeaders(w)
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	touristId, err := getTouristIdFromToken(r, jwtSecret)
+	if err != nil {
+		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := checkoutClient.Checkout(ctx, &pb.CheckoutRequest{TouristId: touristId})
+	if err != nil {
+		http.Error(w, "gRPC error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }
 
 func handleCheckProximityGrpc(w http.ResponseWriter, r *http.Request, jwtSecret string) {
@@ -172,12 +213,12 @@ func main() {
 		log.Fatal("JWT_SECRET environment variable is not set")
 	}
 	initGrpcClients()
-
+	initCheckoutClient()
 	stakeholdersURL := "http://stakeholders:8082"
-	blogURL         := "http://blog:8081"
-	followersURL    := "http://followers:8000"
-	toursURL        := "http://tours:8083"
-	purchaseURL     := "http://purchase:8084"
+	blogURL := "http://blog:8081"
+	followersURL := "http://followers:8000"
+	toursURL := "http://tours:8083"
+	purchaseURL := "http://purchase:8084"
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
@@ -187,6 +228,8 @@ func main() {
 			handleGetCartGrpc(w, r, jwtSecret)
 		} else if isProximityGrpcRoute(path) && (r.Method == "POST" || r.Method == "OPTIONS") {
 			handleCheckProximityGrpc(w, r, jwtSecret)
+		} else if path == "/api/purchase/checkout" && r.Method == "POST" {
+			handleCheckoutGrpc(w, r, jwtSecret)
 		} else if strings.HasPrefix(path, "/api/auth") || strings.HasPrefix(path, "/api/users") {
 			serveReverseProxy(stakeholdersURL, w, r)
 		} else if strings.HasPrefix(path, "/blogs") {
