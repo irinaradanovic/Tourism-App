@@ -123,11 +123,28 @@ export default {
     },
     async checkIfPurchased(tourId) {
       try {
-        const res = await axios.get(`${API}/api/purchase/check/${tourId}`, { headers: getAuthHeader() });
+        const touristId = this.getCurrentUserId();
+        if (!touristId) {
+          this.isPurchased = false;
+          return;
+        }
+
+        const res = await purchaseService.checkPurchase(tourId, touristId);
         this.isPurchased = res.data.purchased;
       } catch (err) {
         console.error("Error checking purchase status:", err);
         this.isPurchased = false;
+      }
+    },
+    getCurrentUserId() {
+      const token = localStorage.getItem('token');
+      if (!token) return null;
+
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.sub || payload.userId || payload.id || null;
+      } catch (_) {
+        return null;
       }
     },
     isInCart(tourId) {

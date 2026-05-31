@@ -27,7 +27,10 @@ export const purchaseService = {
   },
   checkoutCart() {
   return axios.post(`${API_URL}/checkout`, {}, { headers: getAuthHeader() });
-}
+},
+  checkPurchase(tourId, touristId) {
+    return axios.get(`${API_URL}/check/${tourId}?touristId=${touristId}`, { headers: getAuthHeader()});
+  }
 };
 
 export const tourPublicService = {

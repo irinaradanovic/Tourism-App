@@ -44,9 +44,16 @@
               <router-link :to="{ name: 'tourDetailsTourist', params: { id: tour.id } }" class="btn-info">
                 Details
               </router-link>
+              <button
+                v-if="purchasedTourIds.has(tour.id)"
+                class="btn-purchased"
+                disabled
+              >
+                Purchased
+              </button>
 
               <button 
-                v-if="isInCart(tour.id)" 
+                v-else-if="isInCart(tour.id)" 
                 @click="handleRemoveFromCart(tour.id)" 
                 class="btn-remove"
               >
@@ -75,12 +82,14 @@ export default {
     return {
       tours: [],
       cart: { items: [] },
-      user: JSON.parse(localStorage.getItem('user'))
+      user: JSON.parse(localStorage.getItem('user')),
+      purchasedTourIds: new Set()
     }
   },
   async created() {
     if (this.user && this.user.role === 'TOURIST') {
       await this.fetchTours();
+      await this.fetchPurchasedTours();
       await this.fetchCart();
     }
   },
@@ -92,6 +101,23 @@ export default {
       } catch (err) {
         console.error("Error fetching published tours:", err);
       }
+    },
+    async fetchPurchasedTours() {
+      const touristId = this.getCurrentUserId();
+      if (!touristId) return;
+
+      const checks = await Promise.all(
+        this.tours.map(async (tour) => {
+          try {
+            const res = await purchaseService.checkPurchase(tour.id, touristId);
+            return res.data.purchased ? tour.id : null;
+          } catch (_) {
+            return null;
+          }
+        })
+      );
+
+      this.purchasedTourIds = new Set(checks.filter(Boolean));
     },
     async fetchCart() {
       try {
@@ -132,6 +158,16 @@ export default {
         }
       } catch (err) {
         alert(err.response?.data || "Failed to remove item from cart.");
+      }
+    },
+    getCurrentUserId() {
+      const token = localStorage.getItem('token');
+      if (!token) return null;
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.sub || payload.userId || payload.id || null;
+      } catch (_) {
+        return null;
       }
     },
     truncate(text) {
