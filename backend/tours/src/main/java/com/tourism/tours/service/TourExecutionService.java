@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +33,11 @@ public class TourExecutionService {
 
         if (!"PUBLISHED".equals(tour.getStatus().toString()) && !"ARCHIVED".equals(tour.getStatus().toString())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tour must be published or archived to start");
+        }
+
+        Optional<TourExecution> existingActive = executionRepository.findByTourIdAndTouristIdAndStatus(tourId, touristId, "ACTIVE");
+        if (existingActive.isPresent()) {
+            return existingActive.get();
         }
 
         // SAGA korak 1: proveri kod Purchase servisa da li je turista kupio turu
@@ -117,7 +123,14 @@ public class TourExecutionService {
                 execution.getCompletedKeyPoints().put(i, LocalDateTime.now());
             }
         }
-
+        /*/
+        if (tour.getKeyPoints() != null && !tour.getKeyPoints().isEmpty() 
+                && execution.getCompletedKeyPoints().size() == tour.getKeyPoints().size()
+                && !"COMPLETED".equals(execution.getStatus())) {
+            execution.setStatus("COMPLETED");
+            execution.setFinishedAt(LocalDateTime.now());
+        }
+*/
         return executionRepository.save(execution);
     }
 
