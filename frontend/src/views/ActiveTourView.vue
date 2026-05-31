@@ -228,9 +228,8 @@ export default {
           this.checkLocalProximity(lat, lon);
         }
 
-        if (positionChanged) {
-          await this.doServerProximityCheck(lat, lon);
-        }
+        await this.doServerProximityCheck(lat, lon);
+        
         if (this.execution.status === 'COMPLETED') {
           if (this.pollIntervalId) clearInterval(this.pollIntervalId);
           alert('Tour completed!');
@@ -259,21 +258,34 @@ export default {
     async doServerProximityCheck(lat, lon) {
       try {
         const res = await axios.post(
-          `${API}/api/executions/${this.execution.id}/proximity`,
+          `${API}/api/executions/${this.execution.id}/proximity/grpc`,
           { lat, lon },
           { headers: getAuthHeader() }
         );
-        const updated = res.data;
-
-        if (
-          JSON.stringify(updated.completedKeyPoints) !==
-          JSON.stringify(this.execution.completedKeyPoints)
-        ) {
-          this.execution = updated;
-          this.$nextTick(() => this.renderKeyPointMarkers());
-        } else {
-          this.execution = updated;
+        const grpcData = res.data;
+      
+        // gRPC vraca drugaciju strukturu, mapiramo nazad na execution format
+        const updatedCompletedKeyPoints = {};
+        if (grpcData.completed_key_points) {
+          grpcData.completed_key_points.forEach((kp) => {
+            updatedCompletedKeyPoints[kp.index] = kp.completed_at;
+          });
         }
+      
+        const prevCompleted = JSON.stringify(this.execution.completedKeyPoints);
+        const newCompleted = JSON.stringify(updatedCompletedKeyPoints);
+      
+        this.execution = {
+          ...this.execution,
+          status: grpcData.status || this.execution.status,
+          lastActivity: grpcData.last_activity || this.execution.lastActivity,
+          completedKeyPoints: updatedCompletedKeyPoints
+        };
+      
+        if (prevCompleted !== newCompleted) {
+          this.$nextTick(() => this.renderKeyPointMarkers());
+        }
+      
       } catch (err) {
         console.error('Server proximity check failed', err);
       }
