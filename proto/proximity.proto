@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+option go_package = "./pb";
+package proximity;
+
+service ProximityService {
+  rpc CheckProximity (ProximityRequest) returns (ProximityResponse);
+}
+
+message ProximityRequest {
+  string execution_id = 1;
+  int64 tourist_id = 2;
+  double lat = 3;
+  double lon = 4;
+}
+
+message ProximityResponse {
+  string execution_id = 1;
+  string status = 2;
+  string last_activity = 3;
+  repeated CompletedKeyPoint completed_key_points = 4;
+}
+
+message CompletedKeyPoint {
+  int32 index = 1;
+  string completed_at = 2;
+}

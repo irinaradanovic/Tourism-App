@@ -7,6 +7,7 @@ import com.tourism.stakeholders.dto.UserResponseDTO;
 import com.tourism.stakeholders.model.User;
 import com.tourism.stakeholders.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,19 +34,47 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Map<String, Object>> login(@RequestBody LoginRequestDTO request) {
-        Authentication auth = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
-        );
+    public ResponseEntity<?> login(@RequestBody LoginRequestDTO request) {
 
         User user = userService.findByUsername(request.getUsername());
-        String token = jwtUtil.generateToken(user.getId().toString(), user.getRole().name());
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("token", token);
-        response.put("user", UserResponseDTO.fromUser(user));
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Invalid username or password!"));
+        }
 
-        return ResponseEntity.ok(response);
+        if (user.isBlocked()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Your account has been blocked by an administrator."));
+        }
+
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getUsername(),
+                            request.getPassword()
+                    )
+            );
+
+            String token = jwtUtil.generateToken(
+                    user.getId().toString(),
+                    user.getRole().name()
+            );
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", token);
+            response.put("user", UserResponseDTO.fromUser(user));
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Invalid username or password!");
+
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(errorResponse);
+        }
     }
 
     @PostMapping("/logout")

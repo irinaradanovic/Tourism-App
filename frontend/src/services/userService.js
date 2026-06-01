@@ -1,0 +1,45 @@
+import axios from 'axios'
+
+const API_URL = 'http://localhost:80/api/users'
+
+export const userService = {
+
+    getMyProfile() {
+
+        const token = localStorage.getItem('token')
+
+        return axios.get(`${API_URL}/profile`, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        })
+    },
+
+    getUserProfile(userId) {
+        const token = localStorage.getItem('token')
+        return axios.get(`${API_URL}/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+    },
+    
+    toggleBlockUser(userId) {
+        const token = localStorage.getItem('token')
+
+        return axios.put(`${API_URL}/${userId}/toggle-block`, {}, {
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        })
+    },
+    uploadProfileImage(formData) {
+        const token = localStorage.getItem('token')
+
+        return axios.post(`${API_URL}/profile-image`, formData, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+    }
+
+}

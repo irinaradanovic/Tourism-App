@@ -23,6 +23,8 @@ services:
     environment:
       DB_URL: "host=db_blog user=postgres password=turizamSifra dbname=blog_db port=5432 sslmode=disable"
       JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
+      FOLLOWERS_SERVICE_URL: http://followers:8000/api/followers
+      STAKEHOLDERS_SERVICE_URL: http://stakeholders:8082/api/users
     volumes:
       - ./uploads:/root/uploads
 
@@ -53,6 +55,122 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
 
+
+  followers:
+    build:
+      context: ./backend/followers
+    container_name: followers-service
+    ports:
+      - 8000:8000
+    environment:
+      NEO4J_URI: "bolt://db_followers:7687"
+      NEO4J_USER: "neo4j"
+      NEO4J_PASSWORD: "turizamSifra"
+      JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
+      STAKEHOLDERS_SERVICE_URL: http://stakeholders:8082/api/users
+      PYTHONUNBUFFERED: 1
+    depends_on:
+      - db_followers
+      - stakeholders
+
+  db_followers:
+    image: neo4j:latest
+    container_name: followers-db
+    environment:
+      - NEO4J_AUTH=neo4j/turizamSifra
+    ports:
+      - 7687:7687
+      - 7474:7474
+    volumes:
+      - followers_neo4j_data:/data
+      - followers_neo4j_logs:/logs
+      - ./neo-init:/var/lib/neo4j/import
+    command: >
+      bash -c "
+      /startup/docker-entrypoint.sh neo4j &
+      sleep 20 &&
+      cypher-shell -u neo4j -p turizamSifra -f /var/lib/neo4j/import/followers.cypher &&
+      wait
+      "
+
+
+  mongodb_tours:
+    image: mongo:latest
+    container_name: tours-mongodb
+    ports:
+      - 27017:27017
+    volumes:
+      - tours_mongo_data:/data/db
+
+  tours:
+    build:
+      context: ./backend/tours
+    container_name: tours-service
+    ports:
+      - 8083:8083
+      - 9083:9083  # gRPC
+    depends_on:
+      - mongodb_tours
+    environment:
+      JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
+
+  frontend:
+    build:
+      context: ./frontend 
+      dockerfile: Dockerfile
+    container_name: vue_frontend
+    ports:
+      - "5173:80" 
+    restart: always
+
+  gateway:
+    build:
+      context: ./gateway
+    container_name: api-gateway
+    ports:
+      - "80:80"
+    depends_on:
+      - blog
+      - stakeholders
+      - followers
+      - tours
+      - purchase
+    restart: always
+    environment:
+      JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
+
+  purchase:
+    build:
+      context: ./backend/purchase
+    container_name: purchase-service
+    restart: always
+    ports:
+      - 8084:8084
+      - 9084:9084  # gRPC
+    depends_on:
+      - db_purchase
+    environment:
+      JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
+      DB_URL: "host=db_purchase user=postgres password=turizamSifra dbname=purchase_db port=5432 sslmode=disable"
+      TOURS_SERVICE_URL: http://tours:8083/api/tours
+      TOURS_GRPC_URL: "tours:9083"
+
+  db_purchase:
+    image: postgres:latest
+    container_name: purchase-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: turizamSifra
+      POSTGRES_DB: purchase_db
+    ports:
+      - 5434:5432
+    volumes:
+      - purchase_postgres_data:/var/lib/postgresql
+
 volumes:
   blog_postgres_data:
   stakeholders_postgres_data:
+  followers_neo4j_data:
+  followers_neo4j_logs:
+  tours_mongo_data:
+  purchase_postgres_data:

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"blog/model"
 	"blog/service"
 	"encoding/json"
 	"errors"
@@ -146,11 +147,27 @@ func (h *BlogHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	userId, _, errUser := h.GetUserIdFromToken(w, r)
+	if errUser != nil {
+		http.Error(w, "Unauthorized: "+errUser.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+
 	b, err := h.service.GetBlogById(ctx, id)
 	if err != nil {
 		http.Error(w, "Blog not found", http.StatusNotFound)
 		return
 	}
+
+	// proveri da li korisnik prati autora (ili je sam autor)
+	if !h.service.IsFollowing(ctx, userId, b.AuthorId, token) {
+		http.Error(w, "Forbidden: You can only read blogs of users you follow", http.StatusForbidden)
+		return
+	}
+
+	b.AuthorUsername = h.service.GetUsernameById(ctx, b.AuthorId)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(b)
@@ -159,14 +176,41 @@ func (h *BlogHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 func (h *BlogHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	userId, _, errUser := h.GetUserIdFromToken(w, r)
+	if errUser != nil {
+		http.Error(w, "Unauthorized: "+errUser.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	followingIds, err := h.service.GetFollowingIds(ctx, userId, token)
+	if err != nil {
+		http.Error(w, "Error fetching following list", http.StatusInternalServerError)
+		return
+	}
+
+	followingSet := make(map[string]bool)
+	for _, id := range followingIds {
+		followingSet[id] = true
+	}
+	followingSet[userId] = true
+
 	blogs, err := h.service.GetAllBlogs(ctx)
 	if err != nil {
 		http.Error(w, "Error while getting blogs", http.StatusInternalServerError)
 		return
 	}
 
+	var filtered []model.Blog
+	for _, blog := range blogs {
+		if followingSet[blog.AuthorId] {
+			blog.AuthorUsername = h.service.GetUsernameById(ctx, blog.AuthorId)
+			filtered = append(filtered, blog)
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(blogs)
+	json.NewEncoder(w).Encode(filtered)
 }
 
 func (h *BlogHandler) LikeBlog(w http.ResponseWriter, r *http.Request) {
@@ -213,8 +257,24 @@ func (h *BlogHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized: "+errUser.Error(), http.StatusUnauthorized)
 		return
 	}
+
 	if userRole != "GUIDE" && userRole != "TOURIST" {
 		http.Error(w, "Forbidden: Only guides and tourists can comment", http.StatusForbidden)
+		return
+	}
+
+	// Dohvati blog da bismo znali ko je autor
+	blog, errBlog := h.service.GetBlogById(ctx, blogID)
+	if errBlog != nil {
+		http.Error(w, "Blog not found", http.StatusNotFound)
+		return
+	}
+
+	// Provjeri da li korisnik prati autora (ili je sam autor)
+	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+
+	if !h.service.IsFollowing(ctx, userID, blog.AuthorId, token) {
+		http.Error(w, "Forbidden: You must follow the author to comment", http.StatusForbidden)
 		return
 	}
 
@@ -231,22 +291,31 @@ func (h *BlogHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+    comment.AuthorUsername = h.service.GetUsernameById(ctx, comment.AuthorID)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(comment)
 }
 
 func (h *BlogHandler) GetComments(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	vars := mux.Vars(r)
-	blogID := vars["id"]
-	comments, err := h.service.GetCommentsByBlogID(ctx, blogID)
-	if err != nil {
-		http.Error(w, "Error while getting comments", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(comments)
+    ctx := r.Context()
+    vars := mux.Vars(r)
+    blogID := vars["id"]
+
+    comments, err := h.service.GetCommentsByBlogID(ctx, blogID)
+    if err != nil {
+        http.Error(w, "Error while getting comments", http.StatusInternalServerError)
+        return
+    }
+
+    for i := range comments {
+        comments[i].AuthorUsername = h.service.GetUsernameById(ctx, comments[i].AuthorID)
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(comments)
 }
 
 func (h *BlogHandler) EditComment(w http.ResponseWriter, r *http.Request) {
@@ -279,4 +348,37 @@ func (h *BlogHandler) EditComment(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updatedComment)
+}
+
+func (h *BlogHandler) GetBlogsByAuthor(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	authorId := vars["authorId"]
+
+	userId, _, errUser := h.GetUserIdFromToken(w, r)
+	if errUser != nil {
+		http.Error(w, "Unauthorized: "+errUser.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+
+	if userId != authorId && !h.service.IsFollowing(ctx, userId, authorId, token) {
+		http.Error(w, "Forbidden: You must follow this user to see their blogs", http.StatusForbidden)
+		return
+	}
+
+	blogs, err := h.service.GetBlogsByAuthor(ctx, authorId)
+	if err != nil {
+		http.Error(w, "Error fetching blogs", http.StatusInternalServerError)
+		return
+	}
+
+	// Dodaj username autora na svaki blog
+	for i := range blogs {
+		blogs[i].AuthorUsername = h.service.GetUsernameById(ctx, blogs[i].AuthorId)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(blogs)
 }
