@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"purchase/model"
@@ -145,23 +146,40 @@ func (s *PurchaseService) CheckoutCart(ctx context.Context, touristID int64) ([]
 
 	var createdTokens []model.TourPurchaseToken
 
+	// Compensating action in case of failure during the checkout process
+	rollback := func() {
+		for _, token := range createdTokens {
+			log.Printf("[SAGA] Rolling back token for tour %s", token.TourID)
+			s.repo.DeleteToken(ctx, token.ID)
+		}
+	}
+
+	// SAGA
 	for _, item := range cart.Items {
 		alreadyPurchased, err := s.repo.HasToken(touristID, item.TourID)
 		if err != nil {
-			return nil, err
+			rollback()
+			return nil, fmt.Errorf("[SAGA] Error checking token: %v", err)
 		}
 		if alreadyPurchased {
 			continue
 		}
 
+		log.Printf("[SAGA] Step 1: Validating tour %s via gRPC", item.TourID)
 		status, _, _, err := s.ValidateTourViaGrpc(ctx, item.TourID)
 		if err != nil {
-			return nil, err
+			log.Printf("[SAGA] Step 1 FAILED: %v", err)
+			rollback()
+			return nil, fmt.Errorf("tour validation failed: %v", err)
 		}
-		if status == "ARCHIVED" {
-			return nil, fmt.Errorf("tour %s is archived and cannot be purchased", item.TourID)
+		if status == "ARCHIVED" || status == "DRAFT" {
+			log.Printf("[SAGA] Step 1 FAILED: tour status is %s", status)
+			rollback()
+			return nil, fmt.Errorf("tour %s cannot be purchased, status: %s", item.TourID, status)
 		}
+		log.Printf("[SAGA] Step 1 OK: tour %s is %s", item.TourID, status)
 
+		log.Printf("[SAGA] Step 2: Creating token for tour %s", item.TourID)
 		token := model.TourPurchaseToken{
 			TouristID: touristID,
 			TourID:    item.TourID,
@@ -170,16 +188,20 @@ func (s *PurchaseService) CheckoutCart(ctx context.Context, touristID int64) ([]
 		}
 
 		if err := s.repo.CreateToken(ctx, &token); err != nil {
-			return nil, err
+			log.Printf("[SAGA] Step 2 FAILED: %v", err)
+			rollback()
+			return nil, fmt.Errorf("failed to create token: %v", err)
 		}
-
+		log.Printf("[SAGA] Step 2 OK: token created for tour %s", item.TourID)
 		createdTokens = append(createdTokens, token)
 	}
 
+	log.Printf("[SAGA] Step 3: Clearing cart for tourist %d", touristID)
 	if err := s.repo.ClearCartItems(ctx, cart.ID); err != nil {
-		return nil, err
+		log.Printf("[SAGA] Step 3 FAILED, rolling back tokens")
+		rollback()
+		return nil, fmt.Errorf("failed to clear cart: %v", err)
 	}
-
 	cart.Items = []model.OrderItem{}
 	cart.TotalPrice = 0
 	cart.UpdatedAt = time.Now()
@@ -187,6 +209,6 @@ func (s *PurchaseService) CheckoutCart(ctx context.Context, touristID int64) ([]
 	if err := s.repo.SaveCart(ctx, cart); err != nil {
 		return nil, err
 	}
-
+	log.Printf("[SAGA] Checkout SAGA completed successfully for tourist %d", touristID)
 	return createdTokens, nil
 }
