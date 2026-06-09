@@ -163,14 +163,14 @@ func (h *PurchaseHandler) Checkout(w http.ResponseWriter, r *http.Request) {
 
 	userId, _ := strconv.ParseInt(userIdStr, 10, 64)
 
-	tokens, err := h.service.CheckoutCart(r.Context(), userId)
+	err = h.service.CheckoutCartAsync(r.Context(), userId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	w.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(w).Encode(map[string]any{
-		"message": "Checkout completed",
-		"tokens":  tokens,
+		"message": "Checkout initiated. Processing in background.",
 	})
 }

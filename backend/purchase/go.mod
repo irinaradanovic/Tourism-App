@@ -5,6 +5,7 @@ go 1.26.1
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/gorilla/mux v1.8.1
+	github.com/streadway/amqp v1.1.0
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
 	gorm.io/driver/postgres v1.6.0

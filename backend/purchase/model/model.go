@@ -6,6 +6,7 @@ type ShoppingCart struct {
 	ID         uint        `gorm:"primaryKey" json:"id"`
 	TouristID  int64       `gorm:"not null;uniqueIndex" json:"tourist_id"`
 	TotalPrice float64     `gorm:"type:numeric(10,2);default:0" json:"total_price"`
+	Status     string      `gorm:"type:varchar(50);default:'ACTIVE'" json:"status"` // 'ACTIVE'  'PENDING'
 	Items      []OrderItem `gorm:"foreignKey:ShoppingCartID;constraint:OnDelete:CASCADE" json:"items"`
 	CreatedAt  time.Time   `gorm:"type:timestamp" json:"created_at"`
 	UpdatedAt  time.Time   `gorm:"type:timestamp" json:"updated_at"`
