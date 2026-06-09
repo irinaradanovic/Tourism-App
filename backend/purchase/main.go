@@ -14,6 +14,7 @@ import (
 	"purchase/service"
 
 	"github.com/gorilla/mux"
+	"github.com/streadway/amqp"
 	"google.golang.org/grpc"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -60,21 +61,14 @@ type grpcCheckoutServer struct {
 }
 
 func (s *grpcCheckoutServer) Checkout(ctx context.Context, req *pb.CheckoutRequest) (*pb.CheckoutResponse, error) {
-	tokens, err := s.service.CheckoutCart(ctx, req.TouristId)
+	log.Printf("[gRPC Server] Checkout request for tourist: %d", req.TouristId)
+
+	err := s.service.CheckoutCartAsync(ctx, req.TouristId)
 	if err != nil {
+		log.Printf("[gRPC Server] Error in CheckoutCartAsync for tourist %d: %v", req.TouristId, err)
 		return nil, err
 	}
-	out := make([]*pb.PurchaseToken, 0, len(tokens))
-	for _, t := range tokens {
-		out = append(out, &pb.PurchaseToken{
-			Id:        uint32(t.ID),
-			TouristId: t.TouristID,
-			TourId:    t.TourID,
-			TourName:  t.TourName,
-			CreatedAt: t.CreatedAt.String(),
-		})
-	}
-	return &pb.CheckoutResponse{Message: "Checkout completed", Tokens: out}, nil
+	return &pb.CheckoutResponse{Message: "Checkout initiated in background", Tokens: nil}, nil
 }
 
 func main() {
@@ -110,9 +104,26 @@ func main() {
 	defer conn.Close()
 
 	toursClient := pb.NewTourCheckServiceClient(conn)
+	rabbitURL := os.Getenv("RABBITMQ_URL")
+	if rabbitURL == "" {
+		rabbitURL = "amqp://guest:guest@localhost:5672/"
+	}
+
+	rabbitConn, err := amqp.Dial(rabbitURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+	}
+	defer rabbitConn.Close()
+
+	ch, err := rabbitConn.Channel()
+	if err != nil {
+		log.Fatalf("Failed to open a channel on RabbitMQ: %v", err)
+	}
+	defer ch.Close()
 
 	repo := repository.NewPurchaseRepository(db)
-	serv := service.NewPurchaseService(repo, toursClient)
+	serv := service.NewPurchaseService(repo, toursClient, ch)
+	serv.StartSagaConsumers()
 	hand := handler.NewPurchaseHandler(serv, jwtSecret)
 
 	// gRPC server
@@ -146,8 +157,8 @@ func main() {
 	port := ":8084"
 	fmt.Printf("Purchase service listening on port %s...\n", port)
 	log.Fatal(http.ListenAndServe(port, setupCORS(r)))
-}
 
+}
 func setupCORS(router *mux.Router) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

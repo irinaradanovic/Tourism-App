@@ -56,7 +56,8 @@ import { purchaseService } from '@/services/purchaseService';
 export default {
   data() {
     return {
-      cart: { items: [], total_price: 0 }
+      cart: { items: [], total_price: 0, status: 'ACTIVE' },
+      loading: false
     }
   },
   async created() {
@@ -67,6 +68,7 @@ export default {
       try {
         const res = await purchaseService.getCart();
         this.cart = res.data;
+        this.notifyCartUpdate();
       } catch (err) {
         console.error("Error loading cart:", err);
       }
@@ -75,21 +77,47 @@ export default {
       try {
         await purchaseService.removeItemFromCart(itemId);
         await this.fetchCart(); 
-        window.dispatchEvent(new CustomEvent('cart-updated'));
       } catch (err) {
         console.error("Error removing item:", err);
       }
     },
+    notifyCartUpdate() {
+      window.dispatchEvent(new CustomEvent('cart-updated'));
+    },
     async handleCheckout() {
       try {
-        const res = await purchaseService.checkoutCart();
-        alert(`Checkout completed. Created ${res.data.tokens.length} purchase token(s).`);
-        this.cart = { items: [], total_price: 0 };
-        window.dispatchEvent(new CustomEvent('cart-updated'));
+        this.loading = true; 
+        await purchaseService.checkoutCart();
+
+        await new Promise(resolve => setTimeout(resolve, 2500));
         await this.fetchCart();
+
+        const itemsCount = this.cart.items ? this.cart.items.length : 0;
+        const currentStatus = this.cart.status || "ACTIVE";
+
+        if (currentStatus === "ACTIVE" && itemsCount === 0) {
+          alert("Checkout successful!");
+          this.notifyCartUpdate(); 
+        } else if (currentStatus === "ACTIVE" && itemsCount > 0) {
+          alert("Checkout failed: One or more tours are unavailable (Status: DRAFT/ARCHIVED).");
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          await this.fetchCart();
+          
+          const finalCount = this.cart.items ? this.cart.items.length : 0;
+          if (finalCount === 0) {
+            alert("Checkout successful!");
+            this.notifyCartUpdate();
+          } else {
+            alert("Checkout is taking longer than expected. Please check your tokens later.");
+          }
+        }
+
       } catch (err) {
         console.error("Checkout failed:", err);
-        alert(err.response?.data || "Checkout failed");
+        alert("Failed to initiate checkout.");
+      } finally {
+        this.loading = false;
       }
     }
   }

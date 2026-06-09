@@ -228,7 +228,7 @@ func main() {
 			handleGetCartGrpc(w, r, jwtSecret)
 		} else if isProximityGrpcRoute(path) && (r.Method == "POST" || r.Method == "OPTIONS") {
 			handleCheckProximityGrpc(w, r, jwtSecret)
-		} else if path == "/api/purchase/checkout" && r.Method == "POST" {
+		} else if path == "/api/purchase/checkout" && (r.Method == "POST" || r.Method == "OPTIONS") {
 			handleCheckoutGrpc(w, r, jwtSecret)
 		} else if strings.HasPrefix(path, "/api/auth") || strings.HasPrefix(path, "/api/users") {
 			serveReverseProxy(stakeholdersURL, w, r)
