@@ -26,7 +26,7 @@ export const tourService = {
   },
 
   getPublishedTours() {
-    return axios.get(`${API_URL}/tours`, { headers: getHeaders() })
+    return axios.get(`${API_URL}/tours/published`, { headers: getHeaders() })
   },
 
   getTourById(id) {
@@ -43,6 +43,22 @@ export const tourService = {
 
   deleteKeyPoint(tourId, index) {
     return axios.delete(`${API_URL}/tours/${tourId}/key-points/${index}`, { headers: getHeaders() })
+  },
+
+  updateDurations(tourId, durations) {
+    return axios.put(`${API_URL}/tours/${tourId}/durations`, durations, { headers: getHeaders() })
+  },
+
+  publishTour(tourId) {
+    return axios.post(`${API_URL}/tours/${tourId}/publish`, {}, { headers: getHeaders() })
+  },
+
+  archiveTour(tourId) {
+    return axios.post(`${API_URL}/tours/${tourId}/archive`, {}, { headers: getHeaders() })
+  },
+
+  reactivateTour(tourId) {
+    return axios.post(`${API_URL}/tours/${tourId}/reactivate`, {}, { headers: getHeaders() })
   },
 
 addReview(tourId, reviewFormData) {

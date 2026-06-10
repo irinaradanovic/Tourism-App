@@ -4,6 +4,7 @@ import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,7 +27,15 @@ public class Tour {
 
     private Double price = 0.0;
 
+    private Double distanceKm = 0.0;
+
     private TourStatus status = TourStatus.DRAFT;
+
+    private LocalDateTime publishedAt;
+
+    private LocalDateTime archivedAt;
+
+    private List<TourDuration> durations = new ArrayList<>();
 
     private List<KeyPoint> keyPoints = new ArrayList<>();
 

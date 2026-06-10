@@ -6,6 +6,18 @@
       <header class="tour-header">
         <h2>{{ tour.title }}</h2>
         <p class="tour-description">{{ tour.description }}</p>
+        <div class="tour-meta">
+          <span>Status: {{ tour.status }}</span>
+          <span>Distance: {{ tour.distanceKm || 0 }} km</span>
+          <span v-for="duration in tour.durations || []" :key="duration.transportType">
+            {{ duration.transportType }}: {{ duration.minutes }} min
+          </span>
+        </div>
+        <div class="lifecycle-actions" v-if="canManageKeyPoints">
+          <button v-if="tour.status === 'DRAFT'" class="btn-add" @click="publishTour">Publish</button>
+          <button v-if="tour.status === 'PUBLISHED'" class="btn-delete" @click="archiveTour">Archive</button>
+          <button v-if="tour.status === 'ARCHIVED'" class="btn-add" @click="reactivateTour">Reactivate</button>
+        </div>
       </header>
 
       <!-- Key Points Section -->
@@ -74,6 +86,27 @@
           <button v-if="editingIndex !== null" @click="cancelEdit" class="btn-cancel">Cancel</button>
         </div>
       </section>
+
+      <hr class="section-divider" />
+
+      <section class="add-kp-section" v-if="canManageKeyPoints">
+        <h3>Tour Durations</h3>
+        <div class="form-card">
+          <div class="form-grid">
+            <div class="form-group">
+              <select v-model="duration.transportType">
+                <option>WALKING</option>
+                <option>BICYCLE</option>
+                <option>CAR</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <input v-model.number="duration.minutes" type="number" min="1" placeholder="Minutes" />
+            </div>
+          </div>
+          <button class="btn-add" @click="saveDuration">Save Duration</button>
+        </div>
+      </section>
     </div>
   </div>
   <div v-else class="loading-box">
@@ -102,7 +135,11 @@ export default {
       polyline: null,
       keyPointMarkers: [],
       editingIndex:null,
-      currentUserId: null
+      currentUserId: null,
+      duration: {
+        transportType: 'WALKING',
+        minutes: null
+      }
     }
   },
   async created() {
@@ -287,6 +324,41 @@ export default {
       this.tour = res.data
       if (this.map) this.renderKeyPoints()
     },
+    async saveDuration() {
+      if (!this.duration.minutes || this.duration.minutes <= 0) {
+        alert('Duration must be greater than zero.')
+        return
+      }
+      const existing = (this.tour.durations || []).filter(d => d.transportType !== this.duration.transportType)
+      await tourService.updateDurations(this.tour.id, [...existing, { ...this.duration }])
+      await this.fetchTour()
+    },
+    async publishTour() {
+      try {
+        await tourService.publishTour(this.tour.id)
+        alert('Publish saga started. Refresh in a moment to see the final status.')
+        await this.fetchTour()
+      } catch (err) {
+        alert(err.response?.data || 'Publish failed.')
+      }
+    },
+    async archiveTour() {
+      try {
+        await tourService.archiveTour(this.tour.id)
+        alert('Archive saga started. Refresh in a moment to see the final status.')
+        await this.fetchTour()
+      } catch (err) {
+        alert(err.response?.data || 'Archive failed.')
+      }
+    },
+    async reactivateTour() {
+      try {
+        await tourService.reactivateTour(this.tour.id)
+        await this.fetchTour()
+      } catch (err) {
+        alert(err.response?.data || 'Reactivation failed.')
+      }
+    },
     
   }
 }
@@ -332,6 +404,28 @@ export default {
   line-height: 1.7;
   color: #4a5568;
   margin: 0;
+}
+
+.tour-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  color: #4a5568;
+  font-weight: 600;
+}
+
+.tour-meta span {
+  background: #f4f7f9;
+  border: 1px solid #e5eaef;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.lifecycle-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
 }
 
 h3 {

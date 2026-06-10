@@ -43,6 +43,19 @@ type ToursValidationResultEvent struct {
 	Reason    string `json:"reason"`
 }
 
+type TourLifecycleRequestedEvent struct {
+	TourID   string `json:"tour_id"`
+	AuthorID int64  `json:"author_id"`
+	Action   string `json:"action"`
+}
+
+type TourLifecycleResultEvent struct {
+	TourID  string `json:"tour_id"`
+	Action  string `json:"action"`
+	Success bool   `json:"success"`
+	Reason  string `json:"reason"`
+}
+
 func (s *PurchaseService) CheckoutCartAsync(ctx context.Context, touristID int64) error {
 	cart, err := s.repo.GetCartByTouristId(touristID)
 	if err != nil || len(cart.Items) == 0 {
@@ -79,6 +92,10 @@ func (s *PurchaseService) CheckoutCartAsync(ctx context.Context, touristID int64
 func (s *PurchaseService) StartSagaConsumers() {
 	s.declareQueue("tours.validated")
 	s.declareQueue("tours.failed")
+	s.declareQueue("tour.publish.requested")
+	s.declareQueue("tour.publish.completed")
+	s.declareQueue("tour.archive.requested")
+	s.declareQueue("tour.archive.completed")
 
 	validatedMsgs, _ := s.rabbitChannel.Consume("tours.validated", "", true, false, false, false, nil)
 	go func() {
@@ -130,6 +147,63 @@ func (s *PurchaseService) StartSagaConsumers() {
 			}
 		}
 	}()
+
+	publishMsgs, _ := s.rabbitChannel.Consume("tour.publish.requested", "", true, false, false, false, nil)
+	go func() {
+		for d := range publishMsgs {
+			var event TourLifecycleRequestedEvent
+			if err := json.Unmarshal(d.Body, &event); err != nil {
+				log.Printf("[SAGA-PUBLISH] Invalid publish event: %v", err)
+				continue
+			}
+
+			log.Printf("[SAGA-PUBLISH] Preparing purchase catalog for tour %s", event.TourID)
+			s.publishLifecycleResult("tour.publish.completed", TourLifecycleResultEvent{
+				TourID:  event.TourID,
+				Action:  "PUBLISH",
+				Success: true,
+				Reason:  "Purchase service accepted tour for sale",
+			})
+		}
+	}()
+
+	archiveMsgs, _ := s.rabbitChannel.Consume("tour.archive.requested", "", true, false, false, false, nil)
+	go func() {
+		for d := range archiveMsgs {
+			var event TourLifecycleRequestedEvent
+			if err := json.Unmarshal(d.Body, &event); err != nil {
+				log.Printf("[SAGA-ARCHIVE] Invalid archive event: %v", err)
+				continue
+			}
+
+			log.Printf("[SAGA-ARCHIVE] Removing tour %s from active carts before archive", event.TourID)
+			removed, err := s.repo.RemoveTourFromActiveCarts(context.Background(), event.TourID)
+			if err != nil {
+				s.publishLifecycleResult("tour.archive.completed", TourLifecycleResultEvent{
+					TourID:  event.TourID,
+					Action:  "ARCHIVE",
+					Success: false,
+					Reason:  err.Error(),
+				})
+				continue
+			}
+
+			s.publishLifecycleResult("tour.archive.completed", TourLifecycleResultEvent{
+				TourID:  event.TourID,
+				Action:  "ARCHIVE",
+				Success: true,
+				Reason:  fmt.Sprintf("Removed from %d active carts", removed),
+			})
+		}
+	}()
+}
+
+func (s *PurchaseService) publishLifecycleResult(queue string, event TourLifecycleResultEvent) {
+	body, _ := json.Marshal(event)
+	if err := s.rabbitChannel.Publish("", queue, false, false,
+		amqp.Publishing{ContentType: "application/json", Body: body}); err != nil {
+		log.Printf("[SAGA-LIFECYCLE] Failed publishing %s result for tour %s: %v", event.Action, event.TourID, err)
+	}
 }
 
 func (s *PurchaseService) declareQueue(name string) {

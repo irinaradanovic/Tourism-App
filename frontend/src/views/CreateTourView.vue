@@ -33,6 +33,22 @@
           </div>
         </div>
 
+        <div class="form-row">
+          <div class="form-group">
+            <label>Transport</label>
+            <select v-model="duration.transportType">
+              <option>WALKING</option>
+              <option>BICYCLE</option>
+              <option>CAR</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Duration (minutes)</label>
+            <input v-model.number="duration.minutes" type="number" min="1" placeholder="120" />
+          </div>
+        </div>
+
         <button type="submit" class="btn-submit">Create Tour</button>
       </form>
 
@@ -54,6 +70,10 @@ export default {
         description: '',
         difficulty: 'EASY'
       },
+      duration: {
+        transportType: 'WALKING',
+        minutes: null
+      },
       tagsInput: '',
       message: ''
     }
@@ -63,7 +83,8 @@ export default {
       try {
         const payload = {
           ...this.tour,
-          tags: this.tagsInput.split(',').map(t => t.trim())
+          tags: this.tagsInput.split(',').map(t => t.trim()).filter(Boolean),
+          durations: this.duration.minutes ? [this.duration] : []
         }
         await tourService.createTour(payload)
         this.message = "Tour created!"

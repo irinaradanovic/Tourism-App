@@ -18,6 +18,7 @@ type IPurchaseRepository interface {
 	CreateToken(ctx context.Context, token *model.TourPurchaseToken) error
 	ClearCartItems(ctx context.Context, cartID uint) error
 	DeleteToken(ctx context.Context, tokenID uint) error
+	RemoveTourFromActiveCarts(ctx context.Context, tourID string) (int64, error)
 }
 
 type PurchaseRepository struct {
@@ -80,4 +81,37 @@ func (r *PurchaseRepository) ClearCartItems(ctx context.Context, cartID uint) er
 
 func (r *PurchaseRepository) DeleteToken(ctx context.Context, tokenID uint) error {
 	return r.db.WithContext(ctx).Delete(&model.TourPurchaseToken{}, tokenID).Error
+}
+
+func (r *PurchaseRepository) RemoveTourFromActiveCarts(ctx context.Context, tourID string) (int64, error) {
+	var items []model.OrderItem
+	err := r.db.WithContext(ctx).
+		Joins("JOIN shopping_carts ON shopping_carts.id = order_items.shopping_cart_id").
+		Where("order_items.tour_id = ? AND shopping_carts.status = ?", tourID, "ACTIVE").
+		Find(&items).Error
+	if err != nil {
+		return 0, err
+	}
+
+	removed := int64(0)
+	for _, item := range items {
+		var cart model.ShoppingCart
+		if err := r.db.WithContext(ctx).First(&cart, item.ShoppingCartID).Error; err != nil {
+			return removed, err
+		}
+
+		cart.TotalPrice -= item.Price
+		if cart.TotalPrice < 0 {
+			cart.TotalPrice = 0
+		}
+		if err := r.db.WithContext(ctx).Save(&cart).Error; err != nil {
+			return removed, err
+		}
+		if err := r.db.WithContext(ctx).Delete(&item).Error; err != nil {
+			return removed, err
+		}
+		removed++
+	}
+
+	return removed, nil
 }

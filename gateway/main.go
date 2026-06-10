@@ -21,6 +21,7 @@ import (
 var cartClient pb.CartServiceClient
 var proximityClient pb.ProximityServiceClient
 var checkoutClient pb.CheckoutServiceClient
+var tourCommandClient pb.TourCommandServiceClient
 
 func setCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -41,6 +42,7 @@ func initGrpcClients() {
 		log.Fatalf("Failed to connect to tours gRPC: %v", err)
 	}
 	proximityClient = pb.NewProximityServiceClient(connTours)
+	tourCommandClient = pb.NewTourCommandServiceClient(connTours)
 	log.Println("gRPC client connected to tours:9083")
 }
 
@@ -54,9 +56,14 @@ func initCheckoutClient() {
 }
 
 func getTouristIdFromToken(r *http.Request, secret string) (int64, error) {
+	userID, _, err := getUserClaimsFromToken(r, secret)
+	return userID, err
+}
+
+func getUserClaimsFromToken(r *http.Request, secret string) (int64, string, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		return 0, fmt.Errorf("missing auth header")
+		return 0, "", fmt.Errorf("missing auth header")
 	}
 	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
@@ -66,13 +73,14 @@ func getTouristIdFromToken(r *http.Request, secret string) (int64, error) {
 		return []byte(secret), nil
 	})
 	if err != nil || !token.Valid {
-		return 0, fmt.Errorf("invalid token")
+		return 0, "", fmt.Errorf("invalid token")
 	}
 	claims := token.Claims.(jwt.MapClaims)
 	sub := claims["sub"].(string)
 	var id int64
 	fmt.Sscanf(sub, "%d", &id)
-	return id, nil
+	role, _ := claims["role"].(string)
+	return id, role, nil
 }
 
 func handleGetCartGrpc(w http.ResponseWriter, r *http.Request, jwtSecret string) {
@@ -178,6 +186,129 @@ func handleCheckProximityGrpc(w http.ResponseWriter, r *http.Request, jwtSecret 
 	json.NewEncoder(w).Encode(resp)
 }
 
+func handleCreateTourGrpc(w http.ResponseWriter, r *http.Request, jwtSecret string) {
+	setCORSHeaders(w)
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	userID, role, err := getUserClaimsFromToken(r, jwtSecret)
+	if err != nil {
+		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+	if role != "GUIDE" {
+		http.Error(w, "Only guides can create tours", http.StatusForbidden)
+		return
+	}
+
+	var body struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Difficulty  string `json:"difficulty"`
+		Tags        []string `json:"tags"`
+		Durations   []struct {
+			TransportType string `json:"transportType"`
+			Minutes       int32  `json:"minutes"`
+		} `json:"durations"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var durations []*pb.TourDurationProto
+	for _, d := range body.Durations {
+		durations = append(durations, &pb.TourDurationProto{
+			TransportType: toGrpcTransport(d.TransportType),
+			Minutes:       d.Minutes,
+		})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := tourCommandClient.CreateTour(ctx, &pb.CreateTourRequest{
+		Title:       body.Title,
+		Description: body.Description,
+		Difficulty:  toGrpcDifficulty(body.Difficulty),
+		Tags:        body.Tags,
+		AuthorId:    userID,
+		Durations:   durations,
+	})
+	if err != nil {
+		http.Error(w, "gRPC create tour error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp.Tour)
+}
+
+func handlePublishTourGrpc(w http.ResponseWriter, r *http.Request, jwtSecret string) {
+	setCORSHeaders(w)
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	userID, role, err := getUserClaimsFromToken(r, jwtSecret)
+	if err != nil {
+		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) != 4 {
+		http.Error(w, "Invalid URL", http.StatusBadRequest)
+		return
+	}
+	tourID := parts[2]
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resp, err := tourCommandClient.PublishTour(ctx, &pb.PublishTourRequest{
+		TourId:   tourID,
+		AuthorId: userID,
+		Role:     role,
+	})
+	if err != nil {
+		http.Error(w, "gRPC publish tour error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func toGrpcDifficulty(value string) pb.Difficulty {
+	switch strings.ToUpper(value) {
+	case "EASY":
+		return pb.Difficulty_EASY
+	case "MEDIUM":
+		return pb.Difficulty_MEDIUM
+	case "HARD":
+		return pb.Difficulty_HARD
+	default:
+		return pb.Difficulty_DIFFICULTY_UNSPECIFIED
+	}
+}
+
+func toGrpcTransport(value string) pb.TransportType {
+	switch strings.ToUpper(value) {
+	case "WALKING":
+		return pb.TransportType_WALKING
+	case "BICYCLE":
+		return pb.TransportType_BICYCLE
+	case "CAR":
+		return pb.TransportType_CAR
+	default:
+		return pb.TransportType_TRANSPORT_UNSPECIFIED
+	}
+}
+
 func isProximityGrpcRoute(path string) bool {
 	parts := strings.Split(strings.Trim(path, "/"), "/")
 	return len(parts) == 5 &&
@@ -185,6 +316,14 @@ func isProximityGrpcRoute(path string) bool {
 		parts[1] == "executions" &&
 		parts[3] == "proximity" &&
 		parts[4] == "grpc"
+}
+
+func isPublishTourGrpcRoute(path string) bool {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	return len(parts) == 4 &&
+		parts[0] == "api" &&
+		parts[1] == "tours" &&
+		parts[3] == "publish"
 }
 
 func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request) {
@@ -230,6 +369,10 @@ func main() {
 			handleCheckProximityGrpc(w, r, jwtSecret)
 		} else if path == "/api/purchase/checkout" && (r.Method == "POST" || r.Method == "OPTIONS") {
 			handleCheckoutGrpc(w, r, jwtSecret)
+		} else if path == "/api/tours" && (r.Method == "POST" || r.Method == "OPTIONS") {
+			handleCreateTourGrpc(w, r, jwtSecret)
+		} else if isPublishTourGrpcRoute(path) && (r.Method == "POST" || r.Method == "OPTIONS") {
+			handlePublishTourGrpc(w, r, jwtSecret)
 		} else if strings.HasPrefix(path, "/api/auth") || strings.HasPrefix(path, "/api/users") {
 			serveReverseProxy(stakeholdersURL, w, r)
 		} else if strings.HasPrefix(path, "/blogs") {

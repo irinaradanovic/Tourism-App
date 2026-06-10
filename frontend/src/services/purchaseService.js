@@ -35,6 +35,6 @@ export const purchaseService = {
 
 export const tourPublicService = {
   getPublishedTours() {
-    return axios.get('http://localhost:8083/api/tours/published'); 
+    return axios.get('http://localhost:80/api/tours/published', { headers: getAuthHeader() }); 
   }
 };

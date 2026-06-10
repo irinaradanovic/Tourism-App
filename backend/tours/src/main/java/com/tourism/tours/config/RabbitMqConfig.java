@@ -18,6 +18,18 @@ public class RabbitMqConfig {
     public Queue toursFailedQueue() { return new Queue("tours.failed", true); }
 
     @Bean
+    public Queue tourPublishRequestedQueue() { return new Queue("tour.publish.requested", true); }
+
+    @Bean
+    public Queue tourPublishCompletedQueue() { return new Queue("tour.publish.completed", true); }
+
+    @Bean
+    public Queue tourArchiveRequestedQueue() { return new Queue("tour.archive.requested", true); }
+
+    @Bean
+    public Queue tourArchiveCompletedQueue() { return new Queue("tour.archive.completed", true); }
+
+    @Bean
     public Jackson2JsonMessageConverter messageConverter() {
         return new Jackson2JsonMessageConverter();
     }

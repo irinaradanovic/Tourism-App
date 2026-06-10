@@ -1,6 +1,7 @@
 package com.tourism.tours.dto;
 
 import com.tourism.tours.model.Difficulty;
+import com.tourism.tours.model.TourDuration;
 import lombok.Data;
 
 import java.util.List;
@@ -15,4 +16,6 @@ public class CreateTourDTO {
     private Difficulty difficulty;
 
     private List<String> tags;
+
+    private List<TourDuration> durations;
 }

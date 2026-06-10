@@ -1,5 +1,6 @@
 package com.tourism.tours.saga;
 import com.tourism.tours.dto.OrderCreatedEvent;
+import com.tourism.tours.dto.TourLifecycleResultEvent;
 import com.tourism.tours.dto.ToursValidationResultEvent;
 import com.tourism.tours.model.Tour;
 import com.tourism.tours.model.TourStatus;
@@ -48,5 +49,27 @@ private final TourService tourService;
             );
             rabbitTemplate.convertAndSend("tours.failed", failedEvent);
         }
-    }   
+    }
+
+    @RabbitListener(queues = "tour.publish.completed")
+    public void handleTourPublishCompleted(TourLifecycleResultEvent event) {
+        log.info("[SAGA-JAVA] Publish result received for tour {} success={}", event.getTourId(), event.getSuccess());
+        if (Boolean.TRUE.equals(event.getSuccess())) {
+            tourService.finalizePublish(event.getTourId());
+            log.info("[SAGA-JAVA] Tour {} moved to PUBLISHED", event.getTourId());
+        } else {
+            log.warn("[SAGA-JAVA] Publish saga failed for tour {}: {}", event.getTourId(), event.getReason());
+        }
+    }
+
+    @RabbitListener(queues = "tour.archive.completed")
+    public void handleTourArchiveCompleted(TourLifecycleResultEvent event) {
+        log.info("[SAGA-JAVA] Archive result received for tour {} success={}", event.getTourId(), event.getSuccess());
+        if (Boolean.TRUE.equals(event.getSuccess())) {
+            tourService.finalizeArchive(event.getTourId());
+            log.info("[SAGA-JAVA] Tour {} moved to ARCHIVED", event.getTourId());
+        } else {
+            log.warn("[SAGA-JAVA] Archive saga failed for tour {}: {}", event.getTourId(), event.getReason());
+        }
+    }
 }
