@@ -186,6 +186,11 @@ services:
       timeout: 5s
       retries: 5
 
+networks:
+  default:
+    external:
+      name: observability
+
 volumes:
   blog_postgres_data:
   stakeholders_postgres_data:
