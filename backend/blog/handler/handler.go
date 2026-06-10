@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -63,6 +64,7 @@ func (h *BlogHandler) GetUserIdFromToken(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *BlogHandler) CreateBlog(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] Received request to create blog")
 	userId, userRole, errUser := h.GetUserIdFromToken(w, r)
 	if errUser != nil {
 		http.Error(w, "Unauthorized: "+errUser.Error(), http.StatusUnauthorized)
@@ -137,6 +139,7 @@ func (h *BlogHandler) CreateBlog(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	log.Printf("[SUCCESS] Blog created with ID: %s by user: %s", created.ID, userId)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(created)
@@ -147,6 +150,7 @@ func (h *BlogHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	log.Println("[INFO] Received request to get blog with ID:", id)
 	userId, _, errUser := h.GetUserIdFromToken(w, r)
 	if errUser != nil {
 		http.Error(w, "Unauthorized: "+errUser.Error(), http.StatusUnauthorized)
@@ -164,6 +168,7 @@ func (h *BlogHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 	// proveri da li korisnik prati autora (ili je sam autor)
 	if !h.service.IsFollowing(ctx, userId, b.AuthorId, token) {
 		http.Error(w, "Forbidden: You can only read blogs of users you follow", http.StatusForbidden)
+		log.Printf("[WARN] User %s attempted to access blog %s by author %s without following", userId, id, b.AuthorId)
 		return
 	}
 
@@ -174,6 +179,7 @@ func (h *BlogHandler) GetOne(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *BlogHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] Fetching all blogs for user")
 	ctx := r.Context()
 
 	userId, _, errUser := h.GetUserIdFromToken(w, r)
@@ -198,6 +204,7 @@ func (h *BlogHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	blogs, err := h.service.GetAllBlogs(ctx)
 	if err != nil {
 		http.Error(w, "Error while getting blogs", http.StatusInternalServerError)
+		log.Println("[ERROR] Error while getting blogs:", err)
 		return
 	}
 
@@ -214,11 +221,11 @@ func (h *BlogHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *BlogHandler) LikeBlog(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] Received request to like blog")
 	ctx := r.Context()
 	vars := mux.Vars(r)
 
 	blogId := vars["id"]
-	//userId := "100" //MOCK KORISNIKA DOK SE NE URADI LOGIN
 
 	userId, userRole, errUser := h.GetUserIdFromToken(w, r)
 	if errUser != nil {
@@ -242,6 +249,7 @@ func (h *BlogHandler) LikeBlog(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error while liking", http.StatusInternalServerError)
 		return
 	}
+	log.Println("[SUCCESS] Blog liked/unliked successfully")
 	w.WriteHeader(http.StatusOK)
 
 }
@@ -292,7 +300,7 @@ func (h *BlogHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-    comment.AuthorUsername = h.service.GetUsernameById(ctx, comment.AuthorID)
+	comment.AuthorUsername = h.service.GetUsernameById(ctx, comment.AuthorID)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -300,22 +308,22 @@ func (h *BlogHandler) AddComment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *BlogHandler) GetComments(w http.ResponseWriter, r *http.Request) {
-    ctx := r.Context()
-    vars := mux.Vars(r)
-    blogID := vars["id"]
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	blogID := vars["id"]
 
-    comments, err := h.service.GetCommentsByBlogID(ctx, blogID)
-    if err != nil {
-        http.Error(w, "Error while getting comments", http.StatusInternalServerError)
-        return
-    }
+	comments, err := h.service.GetCommentsByBlogID(ctx, blogID)
+	if err != nil {
+		http.Error(w, "Error while getting comments", http.StatusInternalServerError)
+		return
+	}
 
-    for i := range comments {
-        comments[i].AuthorUsername = h.service.GetUsernameById(ctx, comments[i].AuthorID)
-    }
+	for i := range comments {
+		comments[i].AuthorUsername = h.service.GetUsernameById(ctx, comments[i].AuthorID)
+	}
 
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(comments)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(comments)
 }
 
 func (h *BlogHandler) EditComment(w http.ResponseWriter, r *http.Request) {

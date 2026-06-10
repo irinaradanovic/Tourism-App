@@ -86,13 +86,17 @@ services:
       - followers_neo4j_logs:/logs
       - ./neo-init:/var/lib/neo4j/import
     command: >
-      bash -c "
-      /startup/docker-entrypoint.sh neo4j &
-      sleep 20 &&
-      cypher-shell -u neo4j -p turizamSifra -f /var/lib/neo4j/import/followers.cypher &&
-      wait
-      "
-
+          bash -c "
+          /startup/docker-entrypoint.sh neo4j &
+          echo 'Waiting for Neo4j to start...' &&
+          until wget --quiet --spider http://localhost:7474; do
+            echo 'Neo4j is not ready yet, waiting 5 seconds...'
+            sleep 5
+          done &&
+          echo 'Neo4j is ready! Starting cypher script...' &&
+          cypher-shell -u neo4j -p turizamSifra -f /var/lib/neo4j/import/followers.cypher &&
+          wait
+          "
 
   mongodb_tours:
     image: mongo:latest
@@ -185,6 +189,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+networks:
+  default:
+    external:
+      name: observability
 
 volumes:
   blog_postgres_data:
