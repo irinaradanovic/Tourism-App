@@ -26,7 +26,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/tours")
 @RequiredArgsConstructor
@@ -44,12 +46,14 @@ public class TourController {
             @RequestBody CreateTourDTO dto,
             @RequestHeader("Authorization") String authHeader
     ) {
-
         String token = authHeader.substring(7);
 
         Long userId = jwtUtil.extractUserId(token);
 
+        log.info("[INFO] Create tour request received by userId={}", userId);
+
         Tour created = tourService.createTour(dto, userId);
+        log.info("[INFO] Tour created successfully tourId={}, authorId={}", created.getId(), userId);
 
         return ResponseEntity.ok(created);
     }
@@ -62,6 +66,7 @@ public class TourController {
         String token = authHeader.substring(7);
 
         Long userId = jwtUtil.extractUserId(token);
+        log.info("[INFO] Fetching tours for userId={}", userId);
 
         return ResponseEntity.ok(
                 tourService.getMyTours(userId)

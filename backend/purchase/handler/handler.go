@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"purchase/service"
 	"strconv"
@@ -57,6 +58,7 @@ func (h *PurchaseHandler) GetUserIdFromToken(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *PurchaseHandler) GetCart(w http.ResponseWriter, r *http.Request) {
+	log.Println("[INFO] GetCart called")
 	w.Header().Set("Content-Type", "application/json")
 	userIdStr, role, err := h.GetUserIdFromToken(w, r)
 	if err != nil {
@@ -140,6 +142,7 @@ func (h *PurchaseHandler) CheckPurchase(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	log.Println("[INFO] Checking purchase status for tourist:", touristId, "and tour:", tourID)
 	has, err := h.service.HasPurchasedTour(touristId, tourID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
