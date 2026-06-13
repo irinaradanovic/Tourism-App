@@ -1,0 +1,221 @@
+Tracing implementation summary
+==============================
+
+Goal
+----
+Implemented distributed tracing for the checkout flow:
+
+client -> gateway -> purchase-service
+
+The traced endpoint is:
+
+POST /api/purchase/checkout
+
+The goal is to show this request in Grafana as one trace that includes spans from both the gateway and purchase-service.
+
+
+Monitoring stack changes
+------------------------
+1. Added Grafana Tempo as the tracing backend.
+
+Files changed/added:
+- monitoring/docker-compose.yml
+- monitoring/tempo/tempo-config.yml
+
+Tempo receives OpenTelemetry trace data through OTLP HTTP on:
+
+http://tempo:4318/v1/traces
+
+Tempo is exposed locally on:
+
+http://localhost:3200
+
+2. Added Tempo as a Grafana datasource.
+
+File changed:
+- monitoring/grafana/provisioning/datasources/datasource.yml
+
+Grafana now has:
+- Loki datasource for logs
+- Tempo datasource for traces
+
+3. Added monitoring documentation.
+
+File added:
+- monitoring/README.md
+
+It explains how to start the monitoring stack, how to start the application, and how to test the checkout trace in Grafana.
+
+
+Application compose changes
+---------------------------
+Updated the main docker-compose.yml so gateway and purchase-service know where to send traces.
+
+File changed:
+- docker-compose.yml
+
+Added to gateway:
+
+OTEL_SERVICE_NAME: gateway
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://tempo:4318/v1/traces
+
+Added to purchase-service:
+
+OTEL_SERVICE_NAME: purchase-service
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://tempo:4318/v1/traces
+
+
+Gateway tracing changes
+-----------------------
+File changed:
+- gateway/main.go
+
+Added OpenTelemetry setup:
+- initializes an OTLP HTTP trace exporter
+- sends traces to Tempo
+- sets service.name from OTEL_SERVICE_NAME
+- configures W3C trace context propagation
+
+Added tracing for POST /api/purchase/checkout:
+- creates a server span named "POST /api/purchase/checkout"
+- adds HTTP attributes:
+  - http.method
+  - http.route
+- records tourist.id after JWT parsing succeeds
+- records errors for unauthorized requests and gRPC failures
+
+Added tracing for the gRPC call from gateway to purchase-service:
+- creates a client span named "grpc.Checkout purchase-service"
+- adds RPC attributes:
+  - rpc.system=grpc
+  - rpc.service=CheckoutService
+  - rpc.method=Checkout
+- injects trace context into gRPC metadata before calling purchase-service
+
+
+Purchase-service tracing changes
+--------------------------------
+File changed:
+- backend/purchase/main.go
+
+Added OpenTelemetry setup:
+- initializes an OTLP HTTP trace exporter
+- sends traces to Tempo
+- sets service.name from OTEL_SERVICE_NAME
+- configures W3C trace context propagation
+
+Added trace context extraction:
+- purchase-service reads trace context from incoming gRPC metadata
+- this makes the purchase-service spans part of the same trace started in gateway
+
+Added tracing for gRPC Checkout:
+- creates a server span named "PurchaseService.Checkout"
+- adds RPC attributes:
+  - rpc.system=grpc
+  - rpc.service=CheckoutService
+  - rpc.method=Checkout
+- adds tourist.id
+- records errors if checkout fails
+
+Added tracing around checkout business logic:
+- creates a child span named "PurchaseService.CheckoutCartAsync"
+- records errors if CheckoutCartAsync fails
+- marks the span as OK when checkout starts successfully
+
+
+Go dependency changes
+---------------------
+Files changed:
+- gateway/go.mod
+- gateway/go.sum
+- backend/purchase/go.mod
+- backend/purchase/go.sum
+
+Added OpenTelemetry packages:
+- go.opentelemetry.io/otel
+- go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
+- go.opentelemetry.io/otel/sdk
+- go.opentelemetry.io/otel/trace
+
+go mod tidy was run for:
+- gateway
+- backend/purchase
+
+
+Expected trace in Grafana
+-------------------------
+After calling POST /api/purchase/checkout with a valid JWT token, Grafana Tempo should show one trace with these spans:
+
+POST /api/purchase/checkout
+grpc.Checkout purchase-service
+PurchaseService.Checkout
+PurchaseService.CheckoutCartAsync
+
+
+How to run
+----------
+Start monitoring first:
+
+docker compose -f monitoring/docker-compose.yml up --build
+
+Then start the application:
+
+docker compose up --build
+
+Open Grafana:
+
+http://localhost:3000
+
+Login:
+
+username: admin
+password: admin
+
+Send checkout request:
+
+curl -X POST http://localhost/api/purchase/checkout -H "Authorization: Bearer <valid_token>"
+
+Then open Grafana Explore and select the Tempo datasource.
+
+
+Verification already performed
+------------------------------
+The following checks passed:
+
+1. Gateway tests/build check:
+
+go test ./...
+
+Result:
+- gateway: no test files
+- gateway/pb: no test files
+
+2. Purchase-service tests/build check:
+
+go test ./...
+
+Result:
+- purchase: no test files
+- purchase/handler: no test files
+- purchase/model: no test files
+- purchase/pb: no test files
+- purchase/repository: no test files
+- purchase/service: no test files
+
+3. Docker Compose config validation:
+
+docker compose -f monitoring/docker-compose.yml config
+docker compose config
+
+Both commands completed successfully.
+
+
+What was not run
+----------------
+The full Docker stack was not started end-to-end during implementation.
+
+Final manual validation still needs to be done:
+- start monitoring stack
+- start application stack
+- send POST /api/purchase/checkout with a valid token
+- confirm the trace appears in Grafana Tempo

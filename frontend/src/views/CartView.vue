@@ -42,8 +42,8 @@
           <strong class="total-price-value">{{ cart.total_price }} RSD</strong>
         </div>
         <hr class="divider" />
-        <button @click="handleCheckout" class="btn-checkout">
-          Proceed to Purchase
+        <button @click="handleCheckout" class="btn-checkout" :disabled="loading">
+          {{ loading ? 'Processing...' : 'Proceed to Purchase' }}
         </button>
       </div>
     </div>
@@ -85,6 +85,10 @@ export default {
       window.dispatchEvent(new CustomEvent('cart-updated'));
     },
     async handleCheckout() {
+      if (this.loading) {
+        return;
+      }
+
       try {
         this.loading = true; 
         await purchaseService.checkoutCart();
@@ -277,5 +281,10 @@ export default {
 
 .btn-checkout:hover {
   background-color: #218838;
+}
+
+.btn-checkout:disabled {
+  background-color: #8bc99a;
+  cursor: not-allowed;
 }
 </style>

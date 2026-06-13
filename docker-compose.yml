@@ -144,6 +144,8 @@ services:
     restart: always
     environment:
       JWT_SECRET: "mF9H1NUpf4SGz2VQ5HNOUoVsStuVCrW1iXUKZgTp5nh"
+      OTEL_SERVICE_NAME: gateway
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://tempo:4318/v1/traces
 
   purchase:
     build:
@@ -162,6 +164,8 @@ services:
       TOURS_SERVICE_URL: http://tours:8083/api/tours
       TOURS_GRPC_URL: "tours:9083"
       RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
+      OTEL_SERVICE_NAME: purchase-service
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://tempo:4318/v1/traces
 
   db_purchase:
     image: postgres:latest

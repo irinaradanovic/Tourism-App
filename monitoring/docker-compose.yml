@@ -11,7 +11,18 @@ services:
       - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
     ports:
       - "3000:3000"
-    depends_on: [loki]
+    depends_on: [loki, tempo]
+    networks: [monitoring]
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: tempo
+    command: -config.file=/etc/tempo/tempo.yml
+    volumes:
+      - ./tempo/tempo-config.yml:/etc/tempo/tempo.yml:ro
+    ports:
+      - "3200:3200"
+      - "4318:4318"
     networks: [monitoring]
 
   loki:

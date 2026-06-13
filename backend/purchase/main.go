@@ -12,13 +12,79 @@ import (
 	"purchase/pb"
 	"purchase/repository"
 	"purchase/service"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/streadway/amqp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
+
+var tracer trace.Tracer
+
+type grpcMetadataCarrier struct {
+	md metadata.MD
+}
+
+func (c grpcMetadataCarrier) Get(key string) string {
+	values := c.md.Get(key)
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
+}
+
+func (c grpcMetadataCarrier) Set(key, value string) {
+	c.md.Set(key, value)
+}
+
+func (c grpcMetadataCarrier) Keys() []string {
+	keys := make([]string, 0, len(c.md))
+	for key := range c.md {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func initTracer(ctx context.Context, serviceName string) (func(context.Context) error, error) {
+	if serviceName == "" {
+		serviceName = "purchase-service"
+	}
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
+	if endpoint == "" {
+		endpoint = "http://tempo:4318/v1/traces"
+	}
+
+	exporter, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpointURL(endpoint))
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := resource.New(ctx, resource.WithAttributes(attribute.String("service.name", serviceName)))
+	if err != nil {
+		return nil, err
+	}
+
+	provider := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(res),
+	)
+	otel.SetTracerProvider(provider)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	tracer = otel.Tracer(serviceName)
+
+	return provider.Shutdown, nil
+}
 
 // gRPC server struct
 type grpcCartServer struct {
@@ -61,17 +127,58 @@ type grpcCheckoutServer struct {
 }
 
 func (s *grpcCheckoutServer) Checkout(ctx context.Context, req *pb.CheckoutRequest) (*pb.CheckoutResponse, error) {
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		ctx = otel.GetTextMapPropagator().Extract(ctx, grpcMetadataCarrier{md: md})
+	}
+	ctx, span := tracer.Start(
+		ctx,
+		"PurchaseService.Checkout",
+		trace.WithSpanKind(trace.SpanKindServer),
+		trace.WithAttributes(
+			attribute.String("rpc.system", "grpc"),
+			attribute.String("rpc.service", "CheckoutService"),
+			attribute.String("rpc.method", "Checkout"),
+			attribute.Int64("tourist.id", req.TouristId),
+		),
+	)
+	defer span.End()
+
 	log.Printf("[gRPC Server] Checkout request for tourist: %d", req.TouristId)
 
-	err := s.service.CheckoutCartAsync(ctx, req.TouristId)
+	checkoutCtx, checkoutSpan := tracer.Start(
+		ctx,
+		"PurchaseService.CheckoutCartAsync",
+		trace.WithAttributes(attribute.Int64("tourist.id", req.TouristId)),
+	)
+	defer checkoutSpan.End()
+	err := s.service.CheckoutCartAsync(checkoutCtx, req.TouristId)
 	if err != nil {
+		checkoutSpan.RecordError(err)
+		checkoutSpan.SetStatus(codes.Error, err.Error())
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		log.Printf("[gRPC Server] Error in CheckoutCartAsync for tourist %d: %v", req.TouristId, err)
 		return nil, err
 	}
+	checkoutSpan.SetStatus(codes.Ok, "")
+	span.SetStatus(codes.Ok, "")
 	return &pb.CheckoutResponse{Message: "Checkout initiated in background", Tokens: nil}, nil
 }
 
 func main() {
+	tracerShutdown, err := initTracer(context.Background(), os.Getenv("OTEL_SERVICE_NAME"))
+	if err != nil {
+		log.Printf("OpenTelemetry tracing disabled: %v", err)
+		tracer = otel.Tracer("purchase-service")
+	} else {
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := tracerShutdown(ctx); err != nil {
+				log.Printf("Failed to shutdown tracer provider: %v", err)
+			}
+		}()
+	}
 
 	dsn := os.Getenv("DB_URL")
 

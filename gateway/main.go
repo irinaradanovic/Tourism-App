@@ -14,14 +14,78 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 var cartClient pb.CartServiceClient
 var proximityClient pb.ProximityServiceClient
 var checkoutClient pb.CheckoutServiceClient
 var tourCommandClient pb.TourCommandServiceClient
+var tracer trace.Tracer
+
+type grpcMetadataCarrier struct {
+	md metadata.MD
+}
+
+func (c grpcMetadataCarrier) Get(key string) string {
+	values := c.md.Get(key)
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
+}
+
+func (c grpcMetadataCarrier) Set(key, value string) {
+	c.md.Set(key, value)
+}
+
+func (c grpcMetadataCarrier) Keys() []string {
+	keys := make([]string, 0, len(c.md))
+	for key := range c.md {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func initTracer(ctx context.Context, serviceName string) (func(context.Context) error, error) {
+	if serviceName == "" {
+		serviceName = "gateway"
+	}
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
+	if endpoint == "" {
+		endpoint = "http://tempo:4318/v1/traces"
+	}
+
+	exporter, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpointURL(endpoint))
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := resource.New(ctx, resource.WithAttributes(attribute.String("service.name", serviceName)))
+	if err != nil {
+		return nil, err
+	}
+
+	provider := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(res),
+	)
+	otel.SetTracerProvider(provider)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	tracer = otel.Tracer(serviceName)
+
+	return provider.Shutdown, nil
+}
 
 func setCORSHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -116,20 +180,61 @@ func handleCheckoutGrpc(w http.ResponseWriter, r *http.Request, jwtSecret string
 		return
 	}
 
+	ctx, span := tracer.Start(
+		r.Context(),
+		"POST /api/purchase/checkout",
+		trace.WithSpanKind(trace.SpanKindServer),
+		trace.WithAttributes(
+			attribute.String("http.method", r.Method),
+			attribute.String("http.route", "/api/purchase/checkout"),
+		),
+	)
+	defer span.End()
+
 	touristId, err := getTouristIdFromToken(r, jwtSecret)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "unauthorized")
 		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
 		return
 	}
+	span.SetAttributes(attribute.Int64("tourist.id", touristId))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	resp, err := checkoutClient.Checkout(ctx, &pb.CheckoutRequest{TouristId: touristId})
+	grpcCtx, grpcSpan := tracer.Start(
+		ctx,
+		"grpc.Checkout purchase-service",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			attribute.String("rpc.system", "grpc"),
+			attribute.String("rpc.service", "CheckoutService"),
+			attribute.String("rpc.method", "Checkout"),
+		),
+	)
+	defer grpcSpan.End()
+
+	md, ok := metadata.FromOutgoingContext(grpcCtx)
+	if ok {
+		md = md.Copy()
+	} else {
+		md = metadata.New(nil)
+	}
+	otel.GetTextMapPropagator().Inject(grpcCtx, grpcMetadataCarrier{md: md})
+	grpcCtx = metadata.NewOutgoingContext(grpcCtx, md)
+
+	resp, err := checkoutClient.Checkout(grpcCtx, &pb.CheckoutRequest{TouristId: touristId})
 	if err != nil {
+		grpcSpan.RecordError(err)
+		grpcSpan.SetStatus(codes.Error, err.Error())
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		http.Error(w, "gRPC error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	grpcSpan.SetStatus(codes.Ok, "")
+	span.SetStatus(codes.Ok, "")
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
@@ -204,9 +309,9 @@ func handleCreateTourGrpc(w http.ResponseWriter, r *http.Request, jwtSecret stri
 	}
 
 	var body struct {
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		Difficulty  string `json:"difficulty"`
+		Title       string   `json:"title"`
+		Description string   `json:"description"`
+		Difficulty  string   `json:"difficulty"`
 		Tags        []string `json:"tags"`
 		Durations   []struct {
 			TransportType string `json:"transportType"`
@@ -347,6 +452,20 @@ func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request
 }
 
 func main() {
+	tracerShutdown, err := initTracer(context.Background(), os.Getenv("OTEL_SERVICE_NAME"))
+	if err != nil {
+		log.Printf("OpenTelemetry tracing disabled: %v", err)
+		tracer = otel.Tracer("gateway")
+	} else {
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := tracerShutdown(ctx); err != nil {
+				log.Printf("Failed to shutdown tracer provider: %v", err)
+			}
+		}()
+	}
+
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET environment variable is not set")
