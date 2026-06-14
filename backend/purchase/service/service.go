@@ -56,6 +56,20 @@ type TourLifecycleResultEvent struct {
 	Reason  string `json:"reason"`
 }
 
+type StartTourRequestedEvent struct {
+	CorrelationId string  `json:"correlationId"`
+	TourId        string  `json:"tourId"`
+	TouristId     int64   `json:"touristId"`
+	Lat           float64 `json:"lat"`
+	Lon           float64 `json:"lon"`
+}
+
+type StartTourResultEvent struct {
+	CorrelationId string `json:"correlationId"`
+	Purchased     bool   `json:"purchased"`
+	Reason        string `json:"reason"`
+}
+
 func (s *PurchaseService) CheckoutCartAsync(ctx context.Context, touristID int64) error {
 	cart, err := s.repo.GetCartByTouristId(touristID)
 	if err != nil || len(cart.Items) == 0 {
@@ -96,6 +110,8 @@ func (s *PurchaseService) StartSagaConsumers() {
 	s.declareQueue("tour.publish.completed")
 	s.declareQueue("tour.archive.requested")
 	s.declareQueue("tour.archive.completed")
+	s.declareQueue("start.tour.requested")
+    s.declareQueue("start.tour.result")
 
 	validatedMsgs, _ := s.rabbitChannel.Consume("tours.validated", "", true, false, false, false, nil)
 	go func() {
@@ -194,6 +210,41 @@ func (s *PurchaseService) StartSagaConsumers() {
 				Success: true,
 				Reason:  fmt.Sprintf("Removed from %d active carts", removed),
 			})
+		}
+	}()
+    startTourMsgs, _ := s.rabbitChannel.Consume("start.tour.requested", "", true, false, false, false, nil)
+	go func() {
+		for d := range startTourMsgs {
+			var event StartTourRequestedEvent
+			if err := json.Unmarshal(d.Body, &event); err != nil {
+				log.Printf("[SAGA-START-TOUR] Neispravan event: %v", err)
+				continue
+			}
+
+			log.Printf("[SAGA-START-TOUR] Proveravam da li je turista %d kupio turu %s", event.TouristId, event.TourId)
+			purchased, err := s.repo.HasToken(event.TouristId, event.TourId)
+
+			result := StartTourResultEvent{CorrelationId: event.CorrelationId}
+
+			if err != nil {
+				result.Purchased = false
+				result.Reason = "Greška pri proveri tokena: " + err.Error()
+				log.Printf("[SAGA-START-TOUR] DB greška: %v", err)
+			} else if !purchased {
+				result.Purchased = false
+				result.Reason = "Turista nije kupio ovu turu"
+				log.Printf("[SAGA-START-TOUR] Turista %d NIJE kupio turu %s", event.TouristId, event.TourId)
+			} else {
+				result.Purchased = true
+				result.Reason = "Tura je kupljena"
+				log.Printf("[SAGA-START-TOUR] Turista %d JESTE kupio turu %s", event.TouristId, event.TourId)
+			}
+
+			body, _ := json.Marshal(result)
+			if err := s.rabbitChannel.Publish("", "start.tour.result", false, false,
+				amqp.Publishing{ContentType: "application/json", Body: body}); err != nil {
+				log.Printf("[SAGA-START-TOUR] Greška pri slanju odgovora: %v", err)
+			}
 		}
 	}()
 }
