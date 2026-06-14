@@ -30,6 +30,12 @@ public class RabbitMqConfig {
     public Queue tourArchiveCompletedQueue() { return new Queue("tour.archive.completed", true); }
 
     @Bean
+    public Queue startTourRequestedQueue() { return new Queue("start.tour.requested", true); }
+
+    @Bean
+    public Queue startTourResultQueue() { return new Queue("start.tour.result", true); }
+
+    @Bean
     public Jackson2JsonMessageConverter messageConverter() {
         return new Jackson2JsonMessageConverter();
     }
